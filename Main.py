@@ -1,14 +1,36 @@
 import pyrealsense2 as rs
 import numpy as np
 import cv2 as cv
-import os
+from sys import platform
+from os import path
+
+
+def pathToFile():
+    bagFile = input("Input Bagfile: ")
+
+    if platform == "win32":
+        pathToBag = f"trainingBagFiles\\{bagFile}.bag"
+        if not path.isfile(pathToBag):
+            pathToBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\{bagFile}.bag"
+
+    if platform == "darwin":
+        pathToBag = f"trainingBagFiles/{bagFile}.bag"
+        if not path.isfile(pathToBag):
+            pathToBag = f"D:/Rob3_Gruppe_6_Realsense_data/BagfileTest/{bagFile}.bag"
+
+    if not path.isfile(pathToBag):
+        print("Can't find a file with that name")
+        pathToFile()
+
+    else:
+        return pathToBag
+
 
 try:
     # Path towards a bag file
-    bagFile = str(input("Input Bagfile: "))
-    pathToRosBag = f"D:\Rob3_Gruppe_6_Realsense_data\BagfileTest\{bagFile}.bag"
+    pathToRosBag = pathToFile()
     # Create pipeline
-    print(pathToRosBag)
+    #print(pathToRosBag)
     pipeline = rs.pipeline()
 
     # Create a config object
@@ -61,19 +83,21 @@ try:
         # if pressed escape exit program'
 
         # Acces each frame from depth image
-        #for f, frame in enumerate(depth_color_image):
-            #print("Depth" + str(depth_frame.get_frame_number()))  # Acces frame number (Hvis det kan bruges til noget)
+        # for f, frame in enumerate(depth_color_image):
+        # print("Depth" + str(depth_frame.get_frame_number()))  # Acces frame number (Hvis det kan bruges til noget)
         # Acces each frame from Color image
-        #for f, frame in enumerate(color_image):
-            # Acces frame number
-            #<print("Color" + str(color_frame.get_frame_number()))
+        # for f, frame in enumerate(color_image):
+        # Acces frame number
+        # <print("Color" + str(color_frame.get_frame_number()))
 
         # if pressed escape exit program
         if key == 27:
             cv.destroyAllWindows()
             break
 
+except RuntimeError:
+    print("Can't read the given file, are you sure it is the right type?")
+    pathToFile()
+
 finally:
     pass
-
-
