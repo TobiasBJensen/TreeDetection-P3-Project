@@ -1,12 +1,14 @@
 import pyrealsense2 as rs
 import numpy as np
-import cv2 as cv
+import cv2
 from sys import platform
 from os import path
 
 
 def pathToFile():
-    bagFile = input("Input Bagfile: ")
+    #bagFile = input("Input Bagfile: ")
+    # If you want to run the same file a lot just uncomment the line below and write the name of the file
+    bagFile = "20221110_142511"
 
     if platform == "win32":
         pathToBag = f"trainingBagFiles\\{bagFile}.bag"
@@ -26,9 +28,15 @@ def pathToFile():
         return pathToBag
 
 
+distance_max = 6  # meter
+distance_min = 0.2  # meter
+
 try:
     # Path towards a bag file
     pathToRosBag = pathToFile()
+
+    # Align RGB to depth
+    align = rs.align(rs.stream.depth)
     # Create pipeline
     #print(pathToRosBag)
     pipeline = rs.pipeline()
@@ -49,8 +57,8 @@ try:
     pipeline.start(config)
 
     # Create opencv window to render image in
-    cv.namedWindow("Depth Stream", cv.WINDOW_AUTOSIZE)
-    cv.namedWindow("Color Stream", cv.WINDOW_AUTOSIZE)
+    cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+    cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
     # Create colorizer object for the depth stream
     colorizer = rs.colorizer()
@@ -59,40 +67,37 @@ try:
     while True:
         # Get frames
         frames = pipeline.wait_for_frames()
+        frames = align.process(frames)
 
         # Get depth frame and color frame
         depth_frame = frames.get_depth_frame()
         color_frame = frames.get_color_frame()
-
         # Colorize depth frame to jet colormap
-        depth_color_frame = colorizer.colorize(depth_frame)
 
-        # Convert colorized depth and RGB color frames to numpy array to render image in opencv
+        # Fill holes in depth dataset
+        hole_filling = rs.hole_filling_filter(2)
+        filled_depth = hole_filling.process(depth_frame)
+        #filled_depth = depth_frame
+
+        depth_color_frame = colorizer.colorize(filled_depth)
+        # Convert depth_frame to numpy array to render image in opencv
+        depth_image = np.asanyarray(filled_depth.get_data())
         depth_color_image = np.asanyarray(depth_color_frame.get_data())
+        depth_gray = cv2.cvtColor(depth_color_image, cv2.COLOR_RGB2GRAY)
+
         color_image = np.asanyarray(color_frame.get_data())
-        # Remeber to convert from RGB color format to OpenCV BGR color format
-        # Without converting from one format to another, colors are not visualised correctly
-        # (check out the sponge on the shelf in the color stream with and without converting)
-        color_image = cv.cvtColor(color_image, cv.COLOR_RGB2BGR)
+        color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
+        depth_image = cv2.GaussianBlur(depth_image, (51, 51), 0)
+        mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
+        masked = cv2.bitwise_and(color_image, color_image, mask=mask)
 
-        # Render image in opencv window
-        cv.imshow("Depth Stream", depth_color_image)
-        cv.imshow("Color Stream", color_image)
-
-        key = cv.waitKey(1)  # Hvis sættes til 1 bliver det video eller kommer der et frame af gangen
-        # if pressed escape exit program'
-
-        # Acces each frame from depth image
-        # for f, frame in enumerate(depth_color_image):
-        # print("Depth" + str(depth_frame.get_frame_number()))  # Acces frame number (Hvis det kan bruges til noget)
-        # Acces each frame from Color image
-        # for f, frame in enumerate(color_image):
-        # Acces frame number
-        # <print("Color" + str(color_frame.get_frame_number()))
+        cv2.imshow("Color Stream", masked)
+        cv2.imshow("Depth Stream", depth_color_image)
 
         # if pressed escape exit program
-        if key == 27:
-            cv.destroyAllWindows()
+        key = cv2.waitKey(1)
+        if key == 27:  # esc
+            cv2.destroyAllWindows()
             break
 
 except RuntimeError:
