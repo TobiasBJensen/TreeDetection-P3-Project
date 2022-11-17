@@ -14,7 +14,7 @@ def pathToFile():
             pathToBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\{bagFile}"
 
     if platform == "darwin":
-        pathToBag = f"trainingBagFiles/{bagFile}½"
+        pathToBag = f"trainingBagFiles/{bagFile}"
         if not path.isfile(pathToBag):
             pathToBag = f"D:/Rob3_Gruppe_6_Realsense_data/BagfileTest/{bagFile}"
 
