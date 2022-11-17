@@ -5,10 +5,14 @@ from sys import platform
 from os import path
 
 
-def pathToFile():
+def pathToFile(bagFileRun):
     bagFile = input("Input Bagfile: ")
-    # If you want to run the same file a lot just uncomment the line below and write the name of the file
-    #bagFile = "20221110_142511"
+
+    if bagFile == "exit":
+        exit()
+
+    if bagFile == "run":
+        bagFile = bagFileRun
 
     if platform == "win32":
         pathToBag = f"trainingBagFiles\\{bagFile}"
@@ -20,19 +24,18 @@ def pathToFile():
         if not path.isfile(pathToBag):
             pathToBag = f"D:/Rob3_Gruppe_6_Realsense_data/BagfileTest/{bagFile}"
 
-    if not path.isfile(pathToBag):
-        print("Can't find a file with that name")
-        pathToFile()
-
-    else:
+    if path.isfile(pathToBag):
         return pathToBag
 
+    else:
+        print("Can't find a file with that name")
+        main()
 
-def initialize():
+def initialize(bagFileRun):
+    # Path towards a bag file
+    pathToRosBag = pathToFile(bagFileRun)
+
     try:
-        # Path towards a bag file
-        pathToRosBag = pathToFile()
-
         # Create pipeline
         #print(pathToRosBag)
         pipeline = rs.pipeline()
@@ -56,10 +59,13 @@ def initialize():
         cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
         cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
+        for x in range(5):
+            pipeline.wait_for_frames()
 
     except RuntimeError:
         print("Can't read the given file, are you sure it is the right type?")
-        pathToFile()
+        main()
+
     finally:
         return pipeline
 
@@ -71,10 +77,6 @@ def getFrames(pipeline):
     alignD = rs.align(rs.stream.depth)
     alignC = rs.align(rs.stream.color)
 
-    for x in range(5):
-        pipeline.wait_for_frames()
-
-
     # Get frames
     frameset = pipeline.wait_for_frames()
     frameset = alignD.process(frameset)
@@ -84,15 +86,11 @@ def getFrames(pipeline):
     color_image = np.asanyarray(color_frame.get_data())
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
-    depth_image = np.asanyarray(depth_frame.get_data())
-    colorized_depth = np.asanyarray(colorizer.colorize(depth_image).get_data())
+    colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
     return depth_frame, colorized_depth, color_image
 
-def removeBackground(depth_frame, color_image):
-    distance_max = 4  # meter
-    distance_min = 0  # meter
-
+def removeBackground(depth_frame, color_image, distance_max, distance_min):
     colorizer = rs.colorizer()
     depth_to_disparity = rs.disparity_transform(True)
     disparity_to_depth = rs.disparity_transform(False)
@@ -116,11 +114,17 @@ def removeBackground(depth_frame, color_image):
 
     return colorized_depth, masked
 def main():
-    pipeline = initialize()
+    # If you want to run the same file a lot just write the name of the file below and type run in input
+    bagFileRun = "20221110_143427.bag"
+
+    loopScript = False
+
+    pipeline = initialize(bagFileRun)
 
     while True:
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
-        modified_colorized_depth, color_removed_background = removeBackground(depth_frame, color_image)
+        # distance is in meters
+        modified_colorized_depth, color_removed_background = removeBackground(depth_frame, color_image, distance_max=4, distance_min=0)
         # Render image in opencv window
         cv2.imshow("Depth Stream", modified_colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
@@ -128,6 +132,8 @@ def main():
         key = cv2.waitKey(1)
         if key == 27:
             cv2.destroyAllWindows()
+            if loopScript:
+                main()
             break
 
 if __name__ == "__main__":
