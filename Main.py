@@ -27,86 +27,89 @@ def pathToFile():
     else:
         return pathToBag
 
+def align():
+    distance_max = 4  # meter
+    distance_min = 0  # meter
 
-distance_max = 4  # meter
-distance_min = 0  # meter
+    try:
+        # Path towards a bag file
+        pathToRosBag = pathToFile()
 
-try:
-    # Path towards a bag file
-    pathToRosBag = pathToFile()
+        # Align RGB to depth
+        alignD = rs.align(rs.stream.depth)
+        alignC = rs.align(rs.stream.color)
+        # Create pipeline
+        #print(pathToRosBag)
+        pipeline = rs.pipeline()
 
-    # Align RGB to depth
-    alignD = rs.align(rs.stream.depth)
-    alignC = rs.align(rs.stream.color)
-    # Create pipeline
-    #print(pathToRosBag)
-    pipeline = rs.pipeline()
+        # Create a config object
+        config = rs.config()
 
-    # Create a config object
-    config = rs.config()
+        # Tell config that we will use a recorded device from file to be used by the pipeline through playback.
+        rs.config.enable_device_from_file(config, pathToRosBag)
 
-    # Tell config that we will use a recorded device from file to be used by the pipeline through playback.
-    rs.config.enable_device_from_file(config, pathToRosBag)
+        # Configure the pipeline to stream both the depth and color streams
+        # Streams must be setup the same way they were recorded
+        # You can use RealSense viewer to figure out what streams, and their corresponding formats and FPS, are available in a bag file
+        config.enable_stream(rs.stream.depth, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, rs.format.rgb8, 30)
 
-    # Configure the pipeline to stream both the depth and color streams
-    # Streams must be setup the same way they were recorded
-    # You can use RealSense viewer to figure out what streams, and their corresponding formats and FPS, are available in a bag file
-    config.enable_stream(rs.stream.depth, rs.format.z16, 30)
-    config.enable_stream(rs.stream.color, rs.format.rgb8, 30)
+        # Start streaming from file
+        pipeline.start(config)
 
-    # Start streaming from file
-    pipeline.start(config)
+        # Create opencv window to render image in
+        cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
-    # Create opencv window to render image in
-    cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
-    cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
+        # Create colorizer object for the depth stream
+        colorizer = rs.colorizer()
 
-    # Create colorizer object for the depth stream
-    colorizer = rs.colorizer()
+        for x in range(5):
+            pipeline.wait_for_frames()
 
-    for x in range(5):
-        pipeline.wait_for_frames()
+        # Streaming loop
+        while True:
+            # Get frames
+            frames = pipeline.wait_for_frames()
+            frames = alignC.process(frames)
 
-    # Streaming loop
-    while True:
-        # Get frames
-        frames = pipeline.wait_for_frames()
-        frames = alignC.process(frames)
+            # Get depth frame and color frame
+            depth_frame = frames.get_depth_frame()
+            color_frame = frames.get_color_frame()
+            # Colorize depth frame to jet colormap
+            #depth_frame = rs.decimation_filter()
+            # Fill holes in depth dataset
+            hole_filling = rs.hole_filling_filter(2)
+            filled_depth = hole_filling.process(depth_frame)
+            #filled_depth = depth_frame
 
-        # Get depth frame and color frame
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
-        # Colorize depth frame to jet colormap
-        #depth_frame = rs.decimation_filter()
-        # Fill holes in depth dataset
-        hole_filling = rs.hole_filling_filter(2)
-        filled_depth = hole_filling.process(depth_frame)
-        #filled_depth = depth_frame
+            depth_color_frame = colorizer.colorize(filled_depth)
+            # Convert depth_frame to numpy array to render image in opencv
+            depth_image = np.asanyarray(filled_depth.get_data())
+            depth_image, _, _, _ = cv2.mean(depth_image)
+            depth_color_image = np.asanyarray(depth_color_frame.get_data())
+            depth_gray = cv2.cvtColor(depth_color_image, cv2.COLOR_RGB2GRAY)
+            color_image = np.asanyarray(color_frame.get_data())
+            color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
-        depth_color_frame = colorizer.colorize(filled_depth)
-        # Convert depth_frame to numpy array to render image in opencv
-        depth_image = np.asanyarray(filled_depth.get_data())
-        depth_image, _, _, _ = cv2.mean(depth_image)
-        depth_color_image = np.asanyarray(depth_color_frame.get_data())
-        depth_gray = cv2.cvtColor(depth_color_image, cv2.COLOR_RGB2GRAY)
-        color_image = np.asanyarray(color_frame.get_data())
-        color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
+            #mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
+            #masked = cv2.bitwise_not(color_image, mask=mask)
 
-        #mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
-        #masked = cv2.bitwise_not(color_image, mask=mask)
+            cv2.imshow("Color Stream", color_image)
+            cv2.imshow("Depth Stream", depth_color_image)
 
-        cv2.imshow("Color Stream", color_image)
-        cv2.imshow("Depth Stream", depth_color_image)
+            # if pressed escape exit program
+            key = cv2.waitKey(1)
+            if key == 27:  # esc
+                cv2.destroyAllWindows()
+                break
 
-        # if pressed escape exit program
-        key = cv2.waitKey(1)
-        if key == 27:  # esc
-            cv2.destroyAllWindows()
-            break
+    except RuntimeError:
+        print("Can't read the given file, are you sure it is the right type?")
+        pathToFile()
 
-except RuntimeError:
-    print("Can't read the given file, are you sure it is the right type?")
-    pathToFile()
+    finally:
+        pass
 
-finally:
-    pass
+
+align()
