@@ -91,32 +91,33 @@ def getFrames(pipeline):
     return depth_frame, colorized_depth, color_image
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
-    colorizer = rs.colorizer()
+    colorizer = rs.colorizer(2)
     depth_to_disparity = rs.disparity_transform(True)
     disparity_to_depth = rs.disparity_transform(False)
     hole_filling = rs.hole_filling_filter(2)
     spatial = rs.spatial_filter()
-    spatial.set_option(rs.option.filter_magnitude, 1)
+    spatial.set_option(rs.option.filter_magnitude, 5)
     spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
     spatial.set_option(rs.option.filter_smooth_delta, 50)
-    spatial.set_option(rs.option.holes_fill, 3)
+    spatial.set_option(rs.option.holes_fill, 5)
+    threshold_filter = rs.threshold_filter(distance_min, distance_max)
 
     frame = depth_to_disparity.process(depth_frame)
     frame = spatial.process(frame)
     frame = disparity_to_depth.process(frame)
     frame = hole_filling.process(frame)
+    frameThreshold = threshold_filter.process(frame)
 
-    depth_image = np.asanyarray(frame.get_data())
-    colorized_depth = np.asanyarray(colorizer.colorize(frame).get_data())
+    depth_image = np.array(frameThreshold.get_data())
+    colorized_depth = np.asanyarray(colorizer.colorize(frameThreshold).get_data())
 
-    mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
+    mask = cv2.inRange(colorized_depth, 1, 255)
     masked = cv2.bitwise_or(color_image, color_image, mask=mask)
 
     return colorized_depth, masked
 def main():
     # If you want to run the same file a lot just write the name of the file below and type run in input
     bagFileRun = "20221110_143427.bag"
-
     loopScript = False
 
     pipeline = initialize(bagFileRun)
@@ -124,7 +125,7 @@ def main():
     while True:
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
         # distance is in meters
-        modified_colorized_depth, color_removed_background = removeBackground(depth_frame, color_image, distance_max=4, distance_min=0)
+        modified_colorized_depth, color_removed_background = removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2)
         # Render image in opencv window
         cv2.imshow("Depth Stream", modified_colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
