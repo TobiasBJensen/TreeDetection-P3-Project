@@ -58,15 +58,7 @@ try:
         cv.imshow("Color Stream", color_image)
 
         key = cv.waitKey(0)  # Hvis sættes til 1 bliver det video eller kommer der et frame af gangen
-        # if pressed escape exit program'
-
-        # Acces each frame from depth image
-        for f, frame in enumerate(depth_color_image):
-            print("Depth" + str(depth_frame.get_frame_number()))  # Acces frame number (Hvis det kan bruges til noget)
-        # Acces each frame from Color image
-        for f, frame in enumerate(color_image):
-            # Acces frame number
-            print("Color" + str(color_frame.get_frame_number()))
+        # if pressed escape exit program
 
         # if pressed escape exit program
         if key == 27:
