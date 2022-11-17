@@ -64,39 +64,46 @@ try:
     # Create colorizer object for the depth stream
     colorizer = rs.colorizer()
 
+    depth_to_disparity = rs.disparity_transform(True)
+    disparity_to_depth = rs.disparity_transform(False)
+    hole_filling = rs.hole_filling_filter(2)
+    spatial = rs.spatial_filter()
+    spatial.set_option(rs.option.filter_magnitude, 1)
+    spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
+    spatial.set_option(rs.option.filter_smooth_delta, 50)
+    spatial.set_option(rs.option.holes_fill, 3)
+
     for x in range(5):
         pipeline.wait_for_frames()
 
-    # Streaming loop
     while True:
         # Get frames
-        frames = pipeline.wait_for_frames()
-        frames = alignC.process(frames)
+        frames = []
+
+        frameset = pipeline.wait_for_frames()
+        frameset = alignD.process(frameset)
+        depth_frame = frameset.get_depth_frame()
+        color_frame = frameset.get_color_frame()
 
         # Get depth frame and color frame
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
-        # Colorize depth frame to jet colormap
-        #depth_frame = rs.decimation_filter()
-        # Fill holes in depth dataset
-        hole_filling = rs.hole_filling_filter(2)
-        filled_depth = hole_filling.process(depth_frame)
-        #filled_depth = depth_frame
 
-        depth_color_frame = colorizer.colorize(filled_depth)
-        # Convert depth_frame to numpy array to render image in opencv
-        depth_image = np.asanyarray(filled_depth.get_data())
-        depth_image, _, _, _ = cv2.mean(depth_image)
-        depth_color_image = np.asanyarray(depth_color_frame.get_data())
-        depth_gray = cv2.cvtColor(depth_color_image, cv2.COLOR_RGB2GRAY)
+        frame = depth_to_disparity.process(depth_frame)
+        frame = spatial.process(frame)
+        frame = disparity_to_depth.process(frame)
+        frame = hole_filling.process(frame)
+        depth_image = np.asanyarray(frame.get_data())
+        colorized_depth = np.asanyarray(colorizer.colorize(frame).get_data())
+
         color_image = np.asanyarray(color_frame.get_data())
         color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
-        #mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
-        #masked = cv2.bitwise_not(color_image, mask=mask)
+        mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
+        masked = cv2.bitwise_or(color_image, color_image, mask=mask)
 
-        cv2.imshow("Color Stream", color_image)
-        cv2.imshow("Depth Stream", depth_color_image)
+        cv2.imshow("Depth Stream", colorized_depth)
+        cv2.imshow("Color Stream", masked)
+
+
 
         # if pressed escape exit program
         key = cv2.waitKey(1)
