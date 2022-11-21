@@ -19,7 +19,9 @@ def colorThresholding(img, minT, MaxT):
     opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-    closing = cv2.bitwise_and(roi, roi, mask=opening) #Color res, after opening/closing
+    #closing = cv2.bitwise_and(roi, roi, mask=opening) #Color res, after opening/closing
+    cv2.imshow('opening', closing)
+    cv2.waitKey(0)
     return closing
 
 def main():
