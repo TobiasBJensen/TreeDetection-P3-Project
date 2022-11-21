@@ -91,7 +91,7 @@ def getFrames(pipeline):
     return depth_frame, colorized_depth, color_image
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
-    colorizer = rs.colorizer(2)
+    colorizer = rs.colorizer(0)
     depth_to_disparity = rs.disparity_transform(True)
     disparity_to_depth = rs.disparity_transform(False)
     hole_filling = rs.hole_filling_filter(2)
@@ -100,19 +100,22 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
     spatial.set_option(rs.option.filter_smooth_delta, 50)
     spatial.set_option(rs.option.holes_fill, 5)
-    threshold_filter = rs.threshold_filter(distance_min, distance_max)
+
 
     frame = depth_to_disparity.process(depth_frame)
     frame = spatial.process(frame)
     frame = disparity_to_depth.process(frame)
     frame = hole_filling.process(frame)
-    frameThreshold = threshold_filter.process(frame)
 
-    depth_image = np.array(frameThreshold.get_data())
-    colorized_depth = np.asanyarray(colorizer.colorize(frameThreshold).get_data())
+    depth_image = np.asanyarray(frame.get_data())
+    colorized_depth = np.asanyarray(colorizer.colorize(frame).get_data())
 
-    mask = cv2.inRange(colorized_depth, 1, 255)
-    masked = cv2.bitwise_or(color_image, color_image, mask=mask)
+    depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
+    depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_DILATE, np.ones((5, 5), np.uint8))
+    cv2.imshow('hi', depth_mask)
+
+    masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
     return colorized_depth, masked
 def main():
