@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 from sys import platform
 from os import path
-
+from colorFiltering import colorThresholding
 
 def pathToFile(bagFileRun):
     bagFile = input("Input Bagfile: ")
@@ -128,10 +128,21 @@ def main():
     while True:
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
         # distance is in meters
-        modified_colorized_depth, color_removed_background = removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2)
+        modified_colorized_depth, color_removed_background = \
+            removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2)
+
+        minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
+        maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
+        Closing_bgr, Opening_bgr, mask = \
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
+
+        Closing_bgr1, Opening_bgr, mask = \
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
         cv2.imshow("Depth Stream", modified_colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
+        cv2.imshow("Closing(3, 3)", Closing_bgr)
+        cv2.imshow("CLosing(5, 5)", Closing_bgr1)
         # if pressed escape exit program
         key = cv2.waitKey(1)
         if key == 27:
