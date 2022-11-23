@@ -6,29 +6,39 @@ from os import path
 from colorFiltering import colorThresholding
 
 def pathToFile(bagFileRun):
-    bagFile = input("Input Bagfile: ")
+    if not bagFileRun[1]:
+        # write command or name of the bag file you want to run
+        bagFile = input("Input Bag file name or type \"exit\" to end script: ")
+    else:
+        bagFile = bagFileRun[0]
 
+    # command that exits the script
     if bagFile == "exit":
         exit()
 
-    if bagFile == "run":
-        bagFile = bagFileRun
-
+    # runs this part for Windows systems
     if platform == "win32":
+        # looks in local folder
         pathToBag = f"trainingBagFiles\\{bagFile}"
+        # if the file is not in the local folder, then it looks in the external hard drives folder
         if not path.isfile(pathToBag):
             pathToBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\{bagFile}"
 
+    # runs this part for Mac systems
     if platform == "darwin":
+        # looks in local folder
         pathToBag = f"trainingBagFiles/{bagFile}"
+        # if the file is not in the local folder, then it looks in the external hard drives folder
         if not path.isfile(pathToBag):
             pathToBag = f"D:/Rob3_Gruppe_6_Realsense_data/BagfileTest/{bagFile}"
 
+    # if the name given correspond to a file in set folders return the path, else try again
     if path.isfile(pathToBag):
         return pathToBag
-
     else:
         print("Can't find a file with that name")
+        if bagFileRun[1]:
+            exit()
         main()
 
 def initialize(bagFileRun):
@@ -73,8 +83,10 @@ def initialize(bagFileRun):
 def getFrames(pipeline):
     # Create colorizer object for the depth stream
     colorizer = rs.colorizer()
+
     # Align RGB to depth
     alignD = rs.align(rs.stream.depth)
+    # Align depth to RGB
     alignC = rs.align(rs.stream.color)
 
     # Get frames
@@ -91,63 +103,74 @@ def getFrames(pipeline):
     return depth_frame, colorized_depth, color_image
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
+    # config for the different filters
+    # filter for colorizing depth data
     colorizer = rs.colorizer(0)
     depth_to_disparity = rs.disparity_transform(True)
     disparity_to_depth = rs.disparity_transform(False)
+    # fill holes by giving unknown pixels the value of the neighboring pixel closest to the sensor
     hole_filling = rs.hole_filling_filter(2)
+    # defines boarders and smoothen the depth data
     spatial = rs.spatial_filter()
     spatial.set_option(rs.option.filter_magnitude, 5)
     spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
     spatial.set_option(rs.option.filter_smooth_delta, 50)
     spatial.set_option(rs.option.holes_fill, 5)
 
-
+    # runs the data through the filters
     frame = depth_to_disparity.process(depth_frame)
     frame = spatial.process(frame)
     frame = disparity_to_depth.process(frame)
     frame = hole_filling.process(frame)
 
+    # turn depth data into a numpy array
     depth_image = np.asanyarray(frame.get_data())
+    # colorize the depth data and turn it into a numpy array
     colorized_depth = np.asanyarray(colorizer.colorize(frame).get_data())
 
+    # generates a binary image showing objects within a given depth threshold to isolate the trees
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
-    depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_DILATE, np.ones((5, 5), np.uint8))
+    # runs closing algoritme on binary image
+    depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     cv2.imshow('hi', depth_mask)
 
+    # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
     return colorized_depth, masked
 def main():
-    # If you want to run the same file a lot just write the name of the file below and type run in input
-    bagFileRun = "20221110_143427.bag"
+    # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
+    bagFileRun = ("20221110_143427.bag", True)
+
+    # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
 
     pipeline = initialize(bagFileRun)
 
     while True:
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
-        # distance is in meters
+
+        # process depth data and isolates objects within a given depth threshold
         modified_colorized_depth, color_removed_background = \
-            removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2)
+            removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
 
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
         Closing_bgr, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
 
         Closing_bgr1, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
-        cv2.imshow("Depth Stream", modified_colorized_depth)
+        cv2.imshow("Depth Stream", colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(3, 3)", Closing_bgr)
-        cv2.imshow("CLosing(5, 5)", Closing_bgr1)
+        cv2.imshow("Closing(7, 7)", Closing_bgr)
+        cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
         key = cv2.waitKey(1)
         if key == 27:
             cv2.destroyAllWindows()
-            if loopScript:
+            if loopScript and not bagFileRun[1]:
                 main()
             break
 
