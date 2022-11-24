@@ -4,6 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
+from collections import deque
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -79,7 +80,6 @@ def initialize(bagFileRun):
     finally:
         return pipeline
 
-
 def getFrames(pipeline):
     # Create colorizer object for the depth stream
     colorizer = rs.colorizer()
@@ -140,7 +140,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     return colorized_depth, masked
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("20221110_143427.bag", True)
+    bagFileRun = ("Training7.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -167,12 +167,63 @@ def main():
         cv2.imshow("Closing(7, 7)", Closing_bgr)
         cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
+
+        #grassfire(Closing_bgr)
+        #cv2.imshow("output", Closing_bgr)
+        newClosing = cv2.bitwise_not(Closing_bgr)
+        simplegrass(newClosing)
+
+
         key = cv2.waitKey(1)
         if key == 27:
             cv2.destroyAllWindows()
             if loopScript and not bagFileRun[1]:
                 main()
             break
+
+def ignitePixel(image, coordinate, id):
+    y, x = coordinate
+    burn_queue = deque()
+
+    if image[y, x] == 255:
+        burn_queue.append((y, x))
+
+    while len(burn_queue) > 0:
+        current_coordinate = burn_queue.pop()
+        y, x = current_coordinate
+        if image[y, x] == 255:
+            image[y, x] = id
+
+            if x + 1 < image.shape[1] and image[y, x + 1] == 255:
+                burn_queue.append((y, x+1))
+            if y + 1 < image.shape[0] and image[y + 1, x] == 255:
+                burn_queue.append((y + 1, x))
+            if x - 1 >= 0 and image[y, x - 1] == 255:
+                burn_queue.append((y, x - 1))
+            if y - 1 >= 0 and image[y - 1, x] == 255:
+                burn_queue.append((y - 1, x))
+
+        if len(burn_queue) == 0:
+            return id + 100
+
+    return id
+
+def grassfire(image):
+    next_id = 50
+    for y, row in enumerate(image):
+        for x, pixel in enumerate(row):
+            next_id = ignitePixel(image, (y, x), next_id)
+
+
+def simplegrass(image):
+    params = cv2.SimpleBlobDetector_Params()
+    params.minArea = 1000
+    params.filterByArea = True
+    detector = cv2.SimpleBlobDetector_create(params)
+    keypoints = detector.detect(image)
+    blank = np.zeros((0,0))
+    im_with_ketpoints = cv2.drawKeypoints(image, keypoints, blank, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    cv2.imshow("key", im_with_ketpoints)
 
 if __name__ == "__main__":
     main()
