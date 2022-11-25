@@ -170,8 +170,8 @@ def main():
 
         #grassfire(Closing_bgr)
         #cv2.imshow("output", Closing_bgr)
-        newClosing = cv2.bitwise_not(Closing_bgr)
-        simplegrass(newClosing)
+        #newClosing = cv2.bitwise_not(Closing_bgr)
+        simplegrass()
 
 
         key = cv2.waitKey(1)
@@ -217,13 +217,21 @@ def grassfire(image):
 
 def simplegrass(image):
     params = cv2.SimpleBlobDetector_Params()
-    params.minArea = 1000
+    #params.minThreshold = 0
+    #params.maxThreshold = 255
+    params.filterByColor = True
+    params.blobColor = 255
+    params.minDistBetweenBlobs = 500
     params.filterByArea = True
+    params.minArea = 100
+    params.filterByCircularity = False
     detector = cv2.SimpleBlobDetector_create(params)
     keypoints = detector.detect(image)
-    blank = np.zeros((0,0))
+    blank = np.zeros((1,1))
     im_with_ketpoints = cv2.drawKeypoints(image, keypoints, blank, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     cv2.imshow("key", im_with_ketpoints)
+
+    print("blobs:", len(keypoints))
 
 if __name__ == "__main__":
     main()
