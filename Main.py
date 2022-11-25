@@ -160,11 +160,11 @@ def main():
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
 
         Closing_bgr1, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
         # Render image in opencv window
         cv2.imshow("Depth Stream", colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(7, 7)", Closing_bgr)
+        cv2.imshow("Closing(7, 7)", Opening_bgr)
         cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
         key = cv2.waitKey(1)
