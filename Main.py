@@ -137,7 +137,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
-    return colorized_depth, masked
+    return colorized_depth, masked, depth_mask
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
     bagFileRun = ("20221110_143427.bag", True)
@@ -151,7 +151,7 @@ def main():
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
 
         # process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background = \
+        modified_colorized_depth, color_removed_background, depth_mask = \
             removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
 
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
@@ -161,10 +161,12 @@ def main():
 
         Closing_bgr1, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
+
+
         # Render image in opencv window
         cv2.imshow("Depth Stream", colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(7, 7)", Closing_bgr)
+        cv2.imshow("Closing(7, 7)", Closing_bgr_C)
         cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
         key = cv2.waitKey(1)
