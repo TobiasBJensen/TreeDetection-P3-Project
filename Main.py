@@ -189,6 +189,30 @@ def imageShow(bagFileRun, color_image, binary_image, depth_binary):
         exit()
 
 
+def simplegrass(image):
+
+    params = cv2.SimpleBlobDetector_Params()
+    params.filterByColor = True
+    params.blobColor = 255
+    params.filterByArea = True
+    params.minArea = 5000
+    params.maxArea = 1000000
+    params.filterByCircularity = False
+    params.filterByInertia = False
+    params.filterByConvexity = False
+
+
+def findCanopy(image):
+    height, width = image.shape
+    img = image[0:height - 150, 0:width]
+
+    contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
+
+    cv2.imshow("edge", img)
+
+
 def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
