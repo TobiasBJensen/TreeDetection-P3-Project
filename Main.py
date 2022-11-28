@@ -4,7 +4,6 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
-from collections import deque
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -162,10 +161,10 @@ def main():
         Closing_bgr1, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
-        cv2.imshow("Depth Stream", colorized_depth)
-        cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(7, 7)", Closing_bgr)
-        cv2.imshow("CLosing(5, 5)", mask)
+        #cv2.imshow("Depth Stream", colorized_depth)
+        #cv2.imshow("Color Stream", color_removed_background)
+        #cv2.imshow("Closing(7, 7)", Closing_bgr)
+        #cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
 
         #newClosing = cv2.bitwise_not(Closing_bgr)
@@ -183,6 +182,8 @@ def main():
 
 
 def blobDetection(image):
+    height, width = image.shape
+    img = image[0:height - 150, 0:width]
     params = cv2.SimpleBlobDetector_Params()
     #params.minThreshold = 0
     #params.maxThreshold = 255
@@ -190,12 +191,14 @@ def blobDetection(image):
     params.blobColor = 255
     #params.minDistBetweenBlobs = 50
     params.filterByArea = False
-    #params.minArea = 100
-    #params.filterByCircularity = False
+    params.minArea = 200
+    params.filterByCircularity = False
     detector = cv2.SimpleBlobDetector_create(params)
     keypoints = detector.detect(image)
-    imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    imageWithKeypoints = cv2.drawKeypoints(img, keypoints, img)
+    #imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     cv2.imshow("key", imageWithKeypoints)
+
 
     print("blobs:", len(keypoints))
 
