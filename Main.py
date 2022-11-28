@@ -67,8 +67,8 @@ def initialize(bagFileRun):
         pipeline.start(config)
 
         # Create opencv window to render image in
-        cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
-        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
+        #cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+        #cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
         for x in range(5):
             pipeline.wait_for_frames()
@@ -132,7 +132,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    cv2.imshow('hi', depth_mask)
+    #cv2.imshow('hi', depth_mask)
 
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
@@ -157,22 +157,21 @@ def main():
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
         Closing_bgr, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((11, 11), np.uint8))
 
         Closing_bgr1, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
-        cv2.imshow("Depth Stream", colorized_depth)
-        cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(7, 7)", Closing_bgr)
+        #cv2.imshow("Depth Stream", colorized_depth)
+        #cv2.imshow("Color Stream", color_removed_background)
+        cv2.imshow("Closing(11, 11)", Closing_bgr)
         cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
 
         #grassfire(Closing_bgr)
         #cv2.imshow("output", Closing_bgr)
         #newClosing = cv2.bitwise_not(Closing_bgr)
-        simplegrass()
-
+        simplegrass(Closing_bgr)
 
         key = cv2.waitKey(1)
         if key == 27:
@@ -181,57 +180,28 @@ def main():
                 main()
             break
 
-def ignitePixel(image, coordinate, id):
-    y, x = coordinate
-    burn_queue = deque()
-
-    if image[y, x] == 255:
-        burn_queue.append((y, x))
-
-    while len(burn_queue) > 0:
-        current_coordinate = burn_queue.pop()
-        y, x = current_coordinate
-        if image[y, x] == 255:
-            image[y, x] = id
-
-            if x + 1 < image.shape[1] and image[y, x + 1] == 255:
-                burn_queue.append((y, x+1))
-            if y + 1 < image.shape[0] and image[y + 1, x] == 255:
-                burn_queue.append((y + 1, x))
-            if x - 1 >= 0 and image[y, x - 1] == 255:
-                burn_queue.append((y, x - 1))
-            if y - 1 >= 0 and image[y - 1, x] == 255:
-                burn_queue.append((y - 1, x))
-
-        if len(burn_queue) == 0:
-            return id + 100
-
-    return id
-
-def grassfire(image):
-    next_id = 50
-    for y, row in enumerate(image):
-        for x, pixel in enumerate(row):
-            next_id = ignitePixel(image, (y, x), next_id)
-
-
 def simplegrass(image):
     params = cv2.SimpleBlobDetector_Params()
-    #params.minThreshold = 0
-    #params.maxThreshold = 255
     params.filterByColor = True
     params.blobColor = 255
-    params.minDistBetweenBlobs = 500
     params.filterByArea = True
-    params.minArea = 100
+    params.minArea = 5000
+    params.maxArea = 1000000
     params.filterByCircularity = False
+    params.filterByInertia = False
+    params.filterByConvexity = False
+
     detector = cv2.SimpleBlobDetector_create(params)
+
     keypoints = detector.detect(image)
     blank = np.zeros((1,1))
     im_with_ketpoints = cv2.drawKeypoints(image, keypoints, blank, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    cv2.imshow("key", im_with_ketpoints)
 
+    cv2.imshow("key", im_with_ketpoints)
+    cv2.waitKey()
     print("blobs:", len(keypoints))
+
+
 
 if __name__ == "__main__":
     main()
