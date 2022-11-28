@@ -65,10 +65,6 @@ def initialize(bagFileRun):
         # Start streaming from file
         pipeline.start(config)
 
-        # Create opencv window to render image in
-        cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
-        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
-
         for x in range(5):
             pipeline.wait_for_frames()
 
@@ -78,6 +74,29 @@ def initialize(bagFileRun):
 
     finally:
         return pipeline
+
+
+def blobDetection(image):
+    height, width = image.shape
+    img = image[0:height - 150, 0:width]
+    params = cv2.SimpleBlobDetector_Params()
+    #params.minThreshold = 0
+    #params.maxThreshold = 255
+    params.filterByColor = True
+    params.blobColor = 255
+    #params.minDistBetweenBlobs = 50
+    params.filterByArea = False
+    params.minArea = 200
+    params.filterByCircularity = False
+    detector = cv2.SimpleBlobDetector_create(params)
+    keypoints = detector.detect(image)
+    imageWithKeypoints = cv2.drawKeypoints(img, keypoints, img)
+    #imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    #cv2.imshow("key", imageWithKeypoints)
+
+
+    print("blobs:", len(keypoints))
+
 
 def getFrames(pipeline):
     # Create colorizer object for the depth stream
@@ -100,6 +119,7 @@ def getFrames(pipeline):
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
     return depth_frame, colorized_depth, color_image
+
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
     # config for the different filters
@@ -131,76 +151,73 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    cv2.imshow('hi', depth_mask)
 
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
-    return colorized_depth, masked
+    return colorized_depth, masked, depth_mask
+
+
+def findContures(Closing_bgr, color_image):
+    contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
+    Closing_bgr_C = Closing_bgr.copy()
+    color_image_C = color_image.copy()
+    Closing_bgr_C = cv2.cvtColor(Closing_bgr_C, cv2.COLOR_GRAY2BGR)
+    #print(contours)
+    for cnt in contours:
+        if cv2.contourArea(cnt) > 1000:
+            x, y, width, height = cv2.boundingRect(cnt)
+
+            cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+
+    return Closing_bgr_C, color_image_C
+
+
+def imageShow(bagFileRun, color_image, binary_image, depth_binary):
+    cv2.imshow("Binary Box", binary_image)
+    cv2.imshow("Color Box", color_image)
+    cv2.imshow("Depth Binary", depth_binary)
+
+
+    # if pressed escape exit program
+    key = cv2.waitKey(1)
+    if key == 27:
+        cv2.destroyAllWindows()
+        if bagFileRun[2] and not bagFileRun[1]:
+            main()
+        exit()
+
+
 def main():
-    # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training8.bag", True)
+    # If you want to run the same file a lot, then set the second argument in bagFileRun to True
+    # Write the name of the file you want to run in the first argument in bagFileRun.
+    # if you want to loop the script then using input, to run through different bag files. Set last argument to True
+    bagFileRun = ("Training2.bag", True, False)
 
-    # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
-    loopScript = False
-
+    # This function initializes the pipline
     pipeline = initialize(bagFileRun)
 
     while True:
+        # This function pulls the frames from the pipeline
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
 
-        # process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background = \
+        # Process depth data and isolates objects within a given depth threshold
+        modified_colorized_depth, color_removed_background, depth_binary = \
             removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
 
+        # Process color data and isolates objects within a given color threshold
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
         Closing_bgr, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
 
-        Closing_bgr1, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
-        # Render image in opencv window
-        #cv2.imshow("Depth Stream", colorized_depth)
-        #cv2.imshow("Color Stream", color_removed_background)
-        #cv2.imshow("Closing(7, 7)", Closing_bgr)
-        #cv2.imshow("CLosing(5, 5)", mask)
-        # if pressed escape exit program
+        # Finds contures and sets bounding boxes around the trees
+        Closing_bgr_box, color_image_box = findContures(Closing_bgr, color_image)
 
-        #newClosing = cv2.bitwise_not(Closing_bgr)
-        blobDetection(Closing_bgr)
-        cv2.waitKey(0)
+        # Render images in opencv window
+        imageShow(bagFileRun, Closing_bgr_box, color_image_box, depth_binary)
 
-
-        key = cv2.waitKey(1)
-        if key == 27:
-            cv2.destroyAllWindows()
-            if loopScript and not bagFileRun[1]:
-                main()
-            break
-
-
-
-def blobDetection(image):
-    height, width = image.shape
-    img = image[0:height - 150, 0:width]
-    params = cv2.SimpleBlobDetector_Params()
-    #params.minThreshold = 0
-    #params.maxThreshold = 255
-    params.filterByColor = True
-    params.blobColor = 255
-    #params.minDistBetweenBlobs = 50
-    params.filterByArea = False
-    params.minArea = 200
-    params.filterByCircularity = False
-    detector = cv2.SimpleBlobDetector_create(params)
-    keypoints = detector.detect(image)
-    imageWithKeypoints = cv2.drawKeypoints(img, keypoints, img)
-    #imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    cv2.imshow("key", imageWithKeypoints)
-
-
-    print("blobs:", len(keypoints))
 
 if __name__ == "__main__":
     main()

@@ -15,8 +15,9 @@ def colorThresholding(roi, minT, maxT, kernel):
     mask = cv2.inRange(hsv, minT, maxT)
     res = cv2.bitwise_and(roi, roi, mask=mask) #If you want the result at Binary
 
-    opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
+
 
 
 
