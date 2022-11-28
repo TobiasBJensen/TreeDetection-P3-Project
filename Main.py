@@ -4,7 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
-from trainingBagFiles.imutils import non_max_suppression
+from imutils.object_detection import non_max_suppression
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
