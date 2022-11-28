@@ -142,6 +142,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     return colorized_depth, masked, depth_mask
 
 def findTrunk(binayimage):
+    inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
     height, width = binayimage.shape
     ROI = binayimage[(height // 2)+20:height-70, 0:width]
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
@@ -166,7 +167,7 @@ def findTrunk(binayimage):
     for (x1, y1, x2, y2) in boxes:
 
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
-
+        cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
     cv2.imshow("Output", outputTemplate)
     cv2.waitKey(0)
 
@@ -203,11 +204,11 @@ def main():
         Closing_bgr2, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
-        cv2.imshow("Depth Stream", colorized_depth)
-        cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(7, 7)", Closing_bgr)
-        cv2.imshow("CLosing(5, 5)", mask)
-        cv2.imshow("d", depth_masked)
+        #cv2.imshow("Depth Stream", colorized_depth)
+        #cv2.imshow("Color Stream", color_removed_background)
+        #cv2.imshow("Closing(7, 7)", Closing_bgr)
+        #cv2.imshow("CLosing(5, 5)", mask)
+        cv2.imshow("Depth Stream", depth_masked)
 
         findTrunk(depth_masked)
         # if pressed escape exit program
