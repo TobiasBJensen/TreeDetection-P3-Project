@@ -184,7 +184,7 @@ def findCanopy(image):
     height, width = image.shape
     img = image[0:height - 150, 0:width]
 
-    contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
 
