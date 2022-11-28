@@ -144,14 +144,15 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
 def findTrunk(binayimage):
     inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
     height, width = binayimage.shape
+    print(height)
     ROI = binayimage[(height // 2)+20:height-70, 0:width]
+    ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
-    cv2.imshow("ROI", ROI)
     themplate = cv2.imread("HvidtBillede2.png")
     thempHeight, thempWidth = themplate.shape[:2]
     themplate1 = themplate[0:thempWidth-100, 0:thempHeight-407]
-    cv2.imshow("f", themplate1)
-    cv2.waitKey(0)
+    #cv2.imshow("f", themplate1)
+    #cv2.waitKey(0)
     H, W = themplate1.shape[:2]
     outputTemplate = cv2.matchTemplate(ROI, themplate1, cv2.TM_SQDIFF_NORMED)
     (y_points, x_points) = np.where(outputTemplate <= 0.1)
@@ -163,20 +164,46 @@ def findTrunk(binayimage):
 
     boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
     print(boxes)
-
+    inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
 
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
-    cv2.imshow("Output", outputTemplate)
-    cv2.waitKey(0)
+        cv2.rectangle(inputImg_C, (x1 - 50, y1 + height - 70 - ROIh), (x2 + 50, y2 + height - 70 - ROIh), (255, 0, 0), 3)
 
-    return
+    inputImg_threshold = cv2.inRange(inputImg_C, (254, 0, 0), (255, 0, 0))
+
+    contours, hierarchy = cv2.findContours(inputImg_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    box_coor = []
+    for cnt in contours:
+        x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
+        cv2.rectangle(inputImg, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
+        box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
+
+    print(box_coor)
+    lineBetween = []
+    print(len(box_coor))
+    box_coor.sort(reverse=True)
+    print(box_coor)
+    while len(box_coor) > 1:
+        first_coor = box_coor.pop(0)
+        second_coor = box_coor[0]
+        print(first_coor, second_coor)
+        lineBetween.append(int(second_coor[0] + (first_coor[0] - second_coor[0])/2))
+
+    print(lineBetween)
+    for obj in lineBetween:
+        cv2.rectangle(inputImg, (obj-5, 0), (obj+5, height*4), (0, 0, 0), -1)
+    #cv2.imshow("Output", outputTemplate)
+    #cv2.imshow("ROI", ROI)
+
+    return inputImg
 
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training7.bag", True)
+    bagFileRun = ("Training8.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -204,13 +231,14 @@ def main():
         Closing_bgr2, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
-        #cv2.imshow("Depth Stream", colorized_depth)
+        cv2.imshow("Depth Stream", colorized_depth)
         #cv2.imshow("Color Stream", color_removed_background)
         #cv2.imshow("Closing(7, 7)", Closing_bgr)
         #cv2.imshow("CLosing(5, 5)", mask)
-        cv2.imshow("Depth Stream", depth_masked)
 
-        findTrunk(depth_masked)
+        depth_masked_trunk = findTrunk(depth_masked)
+        cv2.imshow("Trunk", depth_masked_trunk)
+
         # if pressed escape exit program
         key = cv2.waitKey(1)
 
