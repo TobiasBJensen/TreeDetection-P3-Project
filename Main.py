@@ -141,6 +141,46 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
 
     return colorized_depth, masked, depth_mask
 
+
+def cutTrunkAndGround(trunk):
+    height, width = trunk.shape[:2]
+    inputImg_threshold = cv2.inRange(trunk, (254, 0, 0), (255, 0, 0))
+
+    contours, hierarchy = cv2.findContours(inputImg_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    box_coor = []
+    for cnt in contours:
+        x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
+        cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
+        box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
+
+    ground = int(sum([item[1] for item in box_coor]) / len(box_coor))
+    #print(ground)
+
+    #print(box_coor)
+    lineBetween = []
+    #print(len(box_coor))
+    box_coor.sort(reverse=True)
+    #print(box_coor)
+    while len(box_coor) > 1:
+        first_coor = box_coor.pop(0)
+        second_coor = box_coor[0]
+        #print(first_coor, second_coor)
+        lineBetween.append(int(second_coor[0] + (first_coor[0] - second_coor[0])/2))
+
+    #print(lineBetween)
+    for obj in lineBetween:
+        cv2.rectangle(trunk, (obj-5, 0), (obj+5, height), (0, 0, 0), -1)
+
+    cv2.rectangle(trunk, (0, ground), (width, height), (0, 0, 0), -1)
+    #cv2.imshow("Output", outputTemplate)
+    #cv2.imshow("ROI", ROI)
+
+    trunk = cv2.cvtColor(trunk, cv2.COLOR_BGR2GRAY)
+
+    return trunk
+
+
 def findTrunk(binayimage):
     inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
     height, width = binayimage.shape
@@ -170,40 +210,7 @@ def findTrunk(binayimage):
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(inputImg_C, (x1 - 50, y1 + height - 70 - ROIh), (x2 + 50, y2 + height - 70 - ROIh), (255, 0, 0), 3)
 
-    inputImg_threshold = cv2.inRange(inputImg_C, (254, 0, 0), (255, 0, 0))
-
-    contours, hierarchy = cv2.findContours(inputImg_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    box_coor = []
-    for cnt in contours:
-        x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
-        cv2.rectangle(inputImg, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
-        box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
-
-    ground = int(sum([item[1] for item in box_coor]) / len(box_coor))
-    #print(ground)
-
-    #print(box_coor)
-    lineBetween = []
-    #print(len(box_coor))
-    box_coor.sort(reverse=True)
-    #print(box_coor)
-    while len(box_coor) > 1:
-        first_coor = box_coor.pop(0)
-        second_coor = box_coor[0]
-        #print(first_coor, second_coor)
-        lineBetween.append(int(second_coor[0] + (first_coor[0] - second_coor[0])/2))
-
-    #print(lineBetween)
-    for obj in lineBetween:
-        cv2.rectangle(inputImg, (obj-5, 0), (obj+5, height), (0, 0, 0), -1)
-
-    cv2.rectangle(inputImg, (0, ground), (width, height), (0, 0, 0), -1)
-    #cv2.imshow("Output", outputTemplate)
-    #cv2.imshow("ROI", ROI)
-
-    inputImg = cv2.cvtColor(inputImg, cv2.COLOR_BGR2GRAY)
-    return inputImg
+    return inputImg_C
 
 def findGrass(binaryImage):
     height, width = binaryImage.shape
@@ -304,12 +311,21 @@ def main():
 
         findGrass(depth_masked)
 
-        depth_masked_trunk = findTrunk(depth_masked)
-        #cv2.imshow("Trunk", depth_masked_trunk)
+        trunk_box = findTrunk(depth_masked)
+        cv2.imshow("Trunk", trunk_box)
 
-        depth_masked_trunk_box, color_image_box = findContures(depth_masked_trunk, color_image)
+        # | Tobias test
+        # |
+        # v
+
+        # Uses trunk_box to cut trunk and ground
+        #treeCrown_box = cutTrunkAndGround(trunk_box)
+
+        # Simple contures used for testing
+        #depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image)
         #cv2.imshow("test", color_image_box)
         #cv2.imshow("test2", depth_masked_trunk_box)
+
         # if pressed escape exit program
         key = cv2.waitKey(1)
 
