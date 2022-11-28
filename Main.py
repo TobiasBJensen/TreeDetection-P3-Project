@@ -143,35 +143,39 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
 
 def findTrunk(binayimage):
     height, width = binayimage.shape
-    ROI = binayimage[(height // 2):height -40 , 0:width]
-    ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2RGB)
+    ROI = binayimage[(height // 2)+20:height-70, 0:width]
+    ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
     cv2.imshow("ROI", ROI)
-    themplate = cv2.imread("HvidtBillede.png")
-
-
-
-    W, H = themplate.shape[:2]
-    outputTemplate = cv2.matchTemplate(ROI, themplate, cv2.TM_SQDIFF_NORMED)
-    (y_points, x_points) = np.where(outputTemplate <= 0.7)
-    boxes = list()
+    themplate = cv2.imread("HvidtBillede2.png")
+    thempHeight, thempWidth = themplate.shape[:2]
+    themplate1 = themplate[0:thempWidth-100, 0:thempHeight-407]
+    cv2.imshow("f", themplate1)
+    cv2.waitKey(0)
+    H, W = themplate1.shape[:2]
+    outputTemplate = cv2.matchTemplate(ROI, themplate1, cv2.TM_SQDIFF_NORMED)
+    (y_points, x_points) = np.where(outputTemplate <= 0.1)
+    boxes = []
+    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
 
     for (x, y) in zip(x_points, y_points):
         boxes.append((x, y, x + W, y + H))
 
-    boxes = non_max_suppression(np.array(boxes))
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
+    print(boxes)
 
     for (x1, y1, x2, y2) in boxes:
-        cv2.rectangle(binayimage, (x1, y1), (x2, y2), (255, 0, 0), 3)
+
+        cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
 
     cv2.imshow("Output", outputTemplate)
-    cv2.waitKey(1)
+    cv2.waitKey(0)
 
     return
 
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("20221110_143427.bag", True)
+    bagFileRun = ("Training7.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -192,7 +196,7 @@ def main():
 
 
         Closing_bgr, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((9, 9), np.uint8))
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
 
 
 
