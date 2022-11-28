@@ -156,19 +156,19 @@ def main():
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
         Closing_bgr, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((11, 11), np.uint8))
 
         Closing_bgr1, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
         #cv2.imshow("Depth Stream", colorized_depth)
         #cv2.imshow("Color Stream", color_removed_background)
-        #cv2.imshow("Closing(7, 7)", Closing_bgr)
+        #cv2.imshow("Closing(11, 11)", Closing_bgr)
         #cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
 
         #newClosing = cv2.bitwise_not(Closing_bgr)
-        blobDetection(Closing_bgr)
+        findCanopy(Closing_bgr)
         cv2.waitKey(0)
 
 
@@ -180,26 +180,15 @@ def main():
             break
 
 
-
-def blobDetection(image):
+def findCanopy(image):
     height, width = image.shape
     img = image[0:height - 150, 0:width]
-    params = cv2.SimpleBlobDetector_Params()
-    #params.minThreshold = 0
-    #params.maxThreshold = 255
-    params.filterByColor = True
-    params.blobColor = 255
-    params.minDistBetweenBlobs = 1000
-    params.filterByArea = False
-    params.minArea = 200
-    params.filterByCircularity = False
-    detector = cv2.SimpleBlobDetector_create(params)
-    keypoints = detector.detect(image)
-    imageWithKeypoints = cv2.drawKeypoints(img, keypoints, img)
-    #imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    cv2.imshow("key", imageWithKeypoints)
 
-    print("blobs:", len(keypoints))
+    contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
+
+    cv2.imshow("edge", img)
 
 if __name__ == "__main__":
     main()
