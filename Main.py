@@ -4,6 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
+from imutils.object_detection import non_max_suppression
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -132,15 +133,45 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    cv2.imshow('hi', depth_mask)
+    #cv2.imshow('hi', depth_mask)
+    #findTrunk(depth_mask)
 
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
-    return colorized_depth, masked
+    return colorized_depth, masked, depth_mask
+
+def findTrunk(binayimage):
+    height, width = binayimage.shape
+    ROI = binayimage[(height // 2):height -40 , 0:width]
+    ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2RGB)
+    cv2.imshow("ROI", ROI)
+    themplate = cv2.imread("HvidtBillede.png")
+
+
+
+    W, H = themplate.shape[:2]
+    outputTemplate = cv2.matchTemplate(ROI, themplate, cv2.TM_SQDIFF_NORMED)
+    (y_points, x_points) = np.where(outputTemplate <= 0.7)
+    boxes = list()
+
+    for (x, y) in zip(x_points, y_points):
+        boxes.append((x, y, x + W, y + H))
+
+    boxes = non_max_suppression(np.array(boxes))
+
+    for (x1, y1, x2, y2) in boxes:
+        cv2.rectangle(binayimage, (x1, y1), (x2, y2), (255, 0, 0), 3)
+
+    cv2.imshow("Output", outputTemplate)
+    cv2.waitKey(1)
+
+    return
+
+
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("20221110_143427.bag", True)
+    bagFileRun = ("Training1.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -151,23 +182,35 @@ def main():
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
 
         # process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background = \
+        modified_colorized_depth, color_removed_background, depth_masked = \
             removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
 
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
-        Closing_bgr, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
+        #minThresh = np.array([10, 20, 25])  # ([minH, minS, minV])
+        #maxThresh = np.array([150, 120, 140])  # ([maxH, maxS, maxV])
 
-        Closing_bgr1, Opening_bgr, mask = \
+
+        Closing_bgr, Opening_bgr, mask = \
+            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((9, 9), np.uint8))
+
+
+
+        Closing_bgr2, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
         cv2.imshow("Depth Stream", colorized_depth)
         cv2.imshow("Color Stream", color_removed_background)
         cv2.imshow("Closing(7, 7)", Closing_bgr)
         cv2.imshow("CLosing(5, 5)", mask)
+        cv2.imshow("d", depth_masked)
+
+        findTrunk(depth_masked)
         # if pressed escape exit program
         key = cv2.waitKey(1)
+
+
+
         if key == 27:
             cv2.destroyAllWindows()
             if loopScript and not bagFileRun[1]:
