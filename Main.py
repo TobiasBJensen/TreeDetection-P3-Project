@@ -4,7 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
-from imutils.object_detection import non_max_suppression
+from imutils import non_max_suppression
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -210,8 +210,11 @@ def findGrass(binaryImage):
     for (x, y) in zip(x_grass, y_grass):
         slicegrass += 1
 
-    print(slicegrass)
+    noGrassImage = binaryImage[0: height - slicegrass, 0: width, :]
+
     cv2.imshow("Output", outputTemplate)
+    cv2.imshow("nograss", noGrassImage)
+
     cv2.waitKey(0)
 
 def main():
