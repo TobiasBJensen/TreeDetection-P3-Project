@@ -181,6 +181,7 @@ def main():
             break
 
 def simplegrass(image):
+    
     params = cv2.SimpleBlobDetector_Params()
     params.filterByColor = True
     params.blobColor = 255
