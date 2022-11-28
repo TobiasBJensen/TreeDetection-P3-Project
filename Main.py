@@ -4,7 +4,6 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
-from collections import deque
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -67,8 +66,8 @@ def initialize(bagFileRun):
         pipeline.start(config)
 
         # Create opencv window to render image in
-        #cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
-        #cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
         for x in range(5):
             pipeline.wait_for_frames()
@@ -132,7 +131,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    #cv2.imshow('hi', depth_mask)
+    cv2.imshow('hi', depth_mask)
 
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
@@ -140,7 +139,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     return colorized_depth, masked
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training7.bag", True)
+    bagFileRun = ("Training8.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -164,14 +163,14 @@ def main():
         # Render image in opencv window
         #cv2.imshow("Depth Stream", colorized_depth)
         #cv2.imshow("Color Stream", color_removed_background)
-        cv2.imshow("Closing(11, 11)", Closing_bgr)
-        cv2.imshow("CLosing(5, 5)", mask)
+        #cv2.imshow("Closing(11, 11)", Closing_bgr)
+        #cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
 
-        #grassfire(Closing_bgr)
-        #cv2.imshow("output", Closing_bgr)
         #newClosing = cv2.bitwise_not(Closing_bgr)
-        simplegrass(Closing_bgr)
+        findCanopy(Closing_bgr)
+        cv2.waitKey(0)
+
 
         key = cv2.waitKey(1)
         if key == 27:
@@ -191,18 +190,15 @@ def simplegrass(image):
     params.filterByCircularity = False
     params.filterByInertia = False
     params.filterByConvexity = False
+def findCanopy(image):
+    height, width = image.shape
+    img = image[0:height - 150, 0:width]
 
-    detector = cv2.SimpleBlobDetector_create(params)
+    contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    keypoints = detector.detect(image)
-    blank = np.zeros((1,1))
-    im_with_ketpoints = cv2.drawKeypoints(image, keypoints, blank, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
 
-    cv2.imshow("key", im_with_ketpoints)
-    cv2.waitKey()
-    print("blobs:", len(keypoints))
-
-
+    cv2.imshow("edge", img)
 
 if __name__ == "__main__":
     main()
