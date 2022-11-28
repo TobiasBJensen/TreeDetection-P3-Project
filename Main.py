@@ -4,7 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
-from imutils import non_max_suppression
+from imutils.object_detection import non_max_suppression
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -180,23 +180,29 @@ def findTrunk(binayimage):
         cv2.rectangle(inputImg, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
         box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
 
-    print(box_coor)
+    ground = int(sum([item[1] for item in box_coor]) / len(box_coor))
+    #print(ground)
+
+    #print(box_coor)
     lineBetween = []
-    print(len(box_coor))
+    #print(len(box_coor))
     box_coor.sort(reverse=True)
-    print(box_coor)
+    #print(box_coor)
     while len(box_coor) > 1:
         first_coor = box_coor.pop(0)
         second_coor = box_coor[0]
-        print(first_coor, second_coor)
+        #print(first_coor, second_coor)
         lineBetween.append(int(second_coor[0] + (first_coor[0] - second_coor[0])/2))
 
-    print(lineBetween)
+    #print(lineBetween)
     for obj in lineBetween:
-        cv2.rectangle(inputImg, (obj-5, 0), (obj+5, height*4), (0, 0, 0), -1)
+        cv2.rectangle(inputImg, (obj-5, 0), (obj+5, height), (0, 0, 0), -1)
+
+    cv2.rectangle(inputImg, (0, ground), (width, height), (0, 0, 0), -1)
     #cv2.imshow("Output", outputTemplate)
     #cv2.imshow("ROI", ROI)
 
+    inputImg = cv2.cvtColor(inputImg, cv2.COLOR_BGR2GRAY)
     return inputImg
 
 def findGrass(binaryImage):
@@ -244,9 +250,25 @@ def findGrass(binaryImage):
 
     cv2.waitKey(0)
 
+def findContures(Closing_bgr, color_image):
+    contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
+    Closing_bgr_C = Closing_bgr.copy()
+    color_image_C = color_image.copy()
+    Closing_bgr_C = cv2.cvtColor(Closing_bgr_C, cv2.COLOR_GRAY2BGR)
+    #print(contours)
+    for cnt in contours:
+        if cv2.contourArea(cnt) > 2000:
+            x, y, width, height = cv2.boundingRect(cnt)
+
+            cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+
+    return Closing_bgr_C, color_image_C
+
+
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training7.bag", True)
+    bagFileRun = ("Training8.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -280,12 +302,14 @@ def main():
         #cv2.imshow("CLosing(5, 5)", mask)
         cv2.imshow("d", depth_masked)
 
-        #findTrunk(depth_masked)
         findGrass(depth_masked)
 
         depth_masked_trunk = findTrunk(depth_masked)
-        cv2.imshow("Trunk", depth_masked_trunk)
+        #cv2.imshow("Trunk", depth_masked_trunk)
 
+        depth_masked_trunk_box, color_image_box = findContures(depth_masked_trunk, color_image)
+        #cv2.imshow("test", color_image_box)
+        #cv2.imshow("test2", depth_masked_trunk_box)
         # if pressed escape exit program
         key = cv2.waitKey(1)
 
