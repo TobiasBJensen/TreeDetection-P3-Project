@@ -189,7 +189,7 @@ def blobDetection(image):
     #params.maxThreshold = 255
     params.filterByColor = True
     params.blobColor = 255
-    #params.minDistBetweenBlobs = 50
+    params.minDistBetweenBlobs = 1000
     params.filterByArea = False
     params.minArea = 200
     params.filterByCircularity = False
@@ -198,7 +198,6 @@ def blobDetection(image):
     imageWithKeypoints = cv2.drawKeypoints(img, keypoints, img)
     #imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     cv2.imshow("key", imageWithKeypoints)
-
 
     print("blobs:", len(keypoints))
 
