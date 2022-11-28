@@ -140,7 +140,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     return colorized_depth, masked
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training7.bag", True)
+    bagFileRun = ("Training8.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -168,10 +168,9 @@ def main():
         cv2.imshow("CLosing(5, 5)", mask)
         # if pressed escape exit program
 
-        #grassfire(Closing_bgr)
-        #cv2.imshow("output", Closing_bgr)
         #newClosing = cv2.bitwise_not(Closing_bgr)
-        simplegrass()
+        blobDetection(Closing_bgr)
+        cv2.waitKey(0)
 
 
         key = cv2.waitKey(1)
@@ -181,55 +180,22 @@ def main():
                 main()
             break
 
-def ignitePixel(image, coordinate, id):
-    y, x = coordinate
-    burn_queue = deque()
-
-    if image[y, x] == 255:
-        burn_queue.append((y, x))
-
-    while len(burn_queue) > 0:
-        current_coordinate = burn_queue.pop()
-        y, x = current_coordinate
-        if image[y, x] == 255:
-            image[y, x] = id
-
-            if x + 1 < image.shape[1] and image[y, x + 1] == 255:
-                burn_queue.append((y, x+1))
-            if y + 1 < image.shape[0] and image[y + 1, x] == 255:
-                burn_queue.append((y + 1, x))
-            if x - 1 >= 0 and image[y, x - 1] == 255:
-                burn_queue.append((y, x - 1))
-            if y - 1 >= 0 and image[y - 1, x] == 255:
-                burn_queue.append((y - 1, x))
-
-        if len(burn_queue) == 0:
-            return id + 100
-
-    return id
-
-def grassfire(image):
-    next_id = 50
-    for y, row in enumerate(image):
-        for x, pixel in enumerate(row):
-            next_id = ignitePixel(image, (y, x), next_id)
 
 
-def simplegrass(image):
+def blobDetection(image):
     params = cv2.SimpleBlobDetector_Params()
     #params.minThreshold = 0
     #params.maxThreshold = 255
     params.filterByColor = True
     params.blobColor = 255
-    params.minDistBetweenBlobs = 500
-    params.filterByArea = True
-    params.minArea = 100
-    params.filterByCircularity = False
+    #params.minDistBetweenBlobs = 50
+    params.filterByArea = False
+    #params.minArea = 100
+    #params.filterByCircularity = False
     detector = cv2.SimpleBlobDetector_create(params)
     keypoints = detector.detect(image)
-    blank = np.zeros((1,1))
-    im_with_ketpoints = cv2.drawKeypoints(image, keypoints, blank, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    cv2.imshow("key", im_with_ketpoints)
+    imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    cv2.imshow("key", imageWithKeypoints)
 
     print("blobs:", len(keypoints))
 
