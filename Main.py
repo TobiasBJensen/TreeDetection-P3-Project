@@ -171,7 +171,7 @@ def findTrunk(binayimage):
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training1.bag", True)
+    bagFileRun = ("20221110_143427.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
