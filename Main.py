@@ -4,7 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
-from imutils.object_detection import non_max_suppression
+from imutils import non_max_suppression
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -144,7 +144,6 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
 def findTrunk(binayimage):
     inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
     height, width = binayimage.shape
-    print(height)
     ROI = binayimage[(height // 2)+20:height-70, 0:width]
     ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
@@ -200,10 +199,54 @@ def findTrunk(binayimage):
 
     return inputImg
 
+def findGrass(binaryImage):
+    height, width = binaryImage.shape
+
+    binaryImage = cv2.cvtColor(binaryImage, cv2.COLOR_GRAY2BGR)
+
+
+    cv2.imshow("binaryImageInput", binaryImage)
+
+    template2 = np.full((1, width), 255, dtype=np.uint8)
+    template2 = cv2.cvtColor(template2, cv2.COLOR_GRAY2BGR)
+    H, W = template2.shape[:2]
+
+    cv2.imshow("template2", template2)
+
+    outputTemplate = cv2.matchTemplate(binaryImage, template2, cv2.TM_SQDIFF_NORMED)
+
+    (y_points, x_points) = np.where(outputTemplate <= 0.1)
+
+    boxes = []
+
+    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+
+    for (x, y) in zip(x_points, y_points):
+        boxes.append((x, y, x + W, y + H))
+
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
+    print(boxes)
+
+    for (x1, y1, x2, y2) in boxes:
+        cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
+
+    slicegrass = 0
+
+    (y_grass, x_grass) = np.where((outputTemplate == (255, 0, 0)).all(axis=2))
+
+    for (x, y) in zip(x_grass, y_grass):
+        slicegrass += 1
+
+    noGrassImage = binaryImage[0: height - slicegrass, 0: width, :]
+
+    cv2.imshow("Output", outputTemplate)
+    cv2.imshow("nograss", noGrassImage)
+
+    cv2.waitKey(0)
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training8.bag", True)
+    bagFileRun = ("Training7.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = False
@@ -235,6 +278,10 @@ def main():
         #cv2.imshow("Color Stream", color_removed_background)
         #cv2.imshow("Closing(7, 7)", Closing_bgr)
         #cv2.imshow("CLosing(5, 5)", mask)
+        cv2.imshow("d", depth_masked)
+
+        #findTrunk(depth_masked)
+        findGrass(depth_masked)
 
         depth_masked_trunk = findTrunk(depth_masked)
         cv2.imshow("Trunk", depth_masked_trunk)
