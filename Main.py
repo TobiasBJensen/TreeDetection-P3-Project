@@ -117,12 +117,15 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
     spatial.set_option(rs.option.filter_smooth_delta, 50)
     spatial.set_option(rs.option.holes_fill, 5)
+    # depth threshold
+    threshold = rs.threshold_filter(distance_min, distance_max)
 
     # runs the data through the filters
     frame = depth_to_disparity.process(depth_frame)
     frame = spatial.process(frame)
     frame = disparity_to_depth.process(frame)
     frame = hole_filling.process(frame)
+    thres_frame = threshold.process(frame)
 
     # turn depth data into a numpy array
     depth_image = np.asanyarray(frame.get_data())
@@ -139,7 +142,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
-    return colorized_depth, masked, depth_mask
+    return colorized_depth, masked, depth_mask, thres_frame
 
 
 def cutTrunkAndGround(trunk):
@@ -154,7 +157,10 @@ def cutTrunkAndGround(trunk):
         cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
         box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
 
-    ground = int(sum([item[1] for item in box_coor]) / len(box_coor))
+    if len(box_coor) > 0:
+        ground = int(sum([item[1] for item in box_coor]) / len(box_coor))
+    else:
+        ground = height
     #print(ground)
 
     #print(box_coor)
@@ -208,7 +214,7 @@ def findTrunk(binayimage):
 
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
-        cv2.rectangle(inputImg_C, (x1 - 50, y1 + height - 70 - ROIh), (x2 + 50, y2 + height - 70 - ROIh), (255, 0, 0), 3)
+        cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
 
     return inputImg_C
 
@@ -238,7 +244,7 @@ def findGrass(binaryImage):
         boxes.append((x, y, x + W, y + H))
 
     boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
-    print(boxes)
+    #print(boxes)
 
     for (x1, y1, x2, y2) in boxes:
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
@@ -255,38 +261,57 @@ def findGrass(binaryImage):
     cv2.imshow("Output", outputTemplate)
     cv2.imshow("nograss", noGrassImage)
 
-    cv2.waitKey(0)
+    #cv2.waitKey(0)
 
-def findContures(Closing_bgr, color_image):
+def findContures(Closing_bgr, color_image, depth_frame):
     contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
     Closing_bgr_C = Closing_bgr.copy()
     color_image_C = color_image.copy()
     Closing_bgr_C = cv2.cvtColor(Closing_bgr_C, cv2.COLOR_GRAY2BGR)
     #print(contours)
+    depth_image = np.asanyarray(depth_frame.get_data())
     for cnt in contours:
         if cv2.contourArea(cnt) > 2000:
             x, y, width, height = cv2.boundingRect(cnt)
 
-            cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            box_dist = depth_image[y:y + height, x:x + width]
+            box_dist = box_dist.reshape((box_dist.shape[0] * box_dist.shape[1], 1))
+            box_dist = box_dist[np.nonzero(box_dist)]
 
+            if len(box_dist):
+               dist = (sum(box_dist) / len(box_dist))/1000
+            else:
+                dist = 0
+
+            cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.putText(Closing_bgr_C, f'Width: {width} & Height: {height}', (x, y + height + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(Closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+
+            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.putText(color_image_C, f'Width: {width} & Height: {height}', (x, y + height + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(color_image_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     return Closing_bgr_C, color_image_C
 
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training8.bag", True)
+    bagFileRun = ("20221110_143427.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
-    loopScript = False
+    loopScript = True
 
     pipeline = initialize(bagFileRun)
+
 
     while True:
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
 
         # process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background, depth_masked = \
+        modified_colorized_depth, color_removed_background, depth_masked, depth_image = \
             removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
 
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
@@ -319,12 +344,12 @@ def main():
         # v
 
         # Uses trunk_box to cut trunk and ground
-        #treeCrown_box = cutTrunkAndGround(trunk_box)
+        treeCrown_box = cutTrunkAndGround(trunk_box)
 
         # Simple contures used for testing
-        #depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image)
-        #cv2.imshow("test", color_image_box)
-        #cv2.imshow("test2", depth_masked_trunk_box)
+        depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image)
+        cv2.imshow("test", color_image_box)
+        cv2.imshow("test2", depth_masked_trunk_box)
 
         # if pressed escape exit program
         key = cv2.waitKey(1)
