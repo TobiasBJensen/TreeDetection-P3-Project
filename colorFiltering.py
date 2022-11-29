@@ -2,15 +2,12 @@ import cv2
 import numpy as np
 #This function colorThresholding extracts color in defined min and max BGR values.
 
-#Variables for the function input
-img = cv2.imread('DepthImage.tif')
+img = cv2.imread('RGB_color_pic_Color.png')
 #Følgende Threshold fjerner himlen
 minThresh = np.array([230, 230, 230])# ([minB, minG, minR])
 maxThresh = np.array([255, 255, 255])# ([maxB, maxG, maxR])
 
-
-
-def colorThresholding(img, minT, MaxT):
+def colorThresholding(roi, minT, maxT, kernel):
     #roi might be deleted
     #roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
     # Color Thresholding for Trunk
@@ -30,8 +27,9 @@ def colorThresholding(img, minT, MaxT):
     final = cv2.subtract(img, result)
     return final
 
+
 def main():
-    finalImg = colorThresholding(img, minThresh, maxThresh)
+    finalImg = colorThresholding(img, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
 
     while True:
         cv2.imshow('Skysubtract + closing + open', finalImg)
