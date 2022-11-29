@@ -3,32 +3,38 @@ import numpy as np
 #This function colorThresholding extracts color in defined min and max BGR values.
 
 #Variables for the function input
-img = cv2.imread('RGB_color_pic_Color.png')
-minThresh = np.array([20, 28, 30])# ([minH, minS, minV])
-maxThresh = np.array([114, 100, 115])# ([maxH, maxS, maxV])
+img = cv2.imread('DepthImage.tif')
+#Følgende Threshold fjerner himlen
+minThresh = np.array([230, 230, 230])# ([minB, minG, minR])
+maxThresh = np.array([255, 255, 255])# ([maxB, maxG, maxR])
+
+
+
 def colorThresholding(img, minT, MaxT):
     #roi might be deleted
-    roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
+    #roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
     # Color Thresholding for Trunk
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV) #Converted to hsv
+    #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV) #Converted to hsv
 
-    mask = cv2.inRange(hsv, minThresh, maxThresh)
-    res = cv2.bitwise_and(roi, roi, mask=mask) #If you want the result at Binary
+    mask = cv2.inRange(img, minThresh, maxThresh)
+    res = cv2.bitwise_and(img, img, mask=mask) #If you want the result at Binary
 
-    kernel = np.ones((5,5),np.uint8)
-    opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    kernel = np.ones((5, 5), np.uint8)
+
     closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
 
-    #closing = cv2.bitwise_and(roi, roi, mask=opening) #Color res, after opening/closing
-    cv2.imshow('opening', closing)
-    cv2.waitKey(0)
-    return closing
+
+    result = cv2.bitwise_and(img, img, mask=opening) #Color res, after opening/closing
+
+    final = cv2.subtract(img, result)
+    return final
 
 def main():
-    ClosingRGB = colorThresholding(img, minThresh, maxThresh)
+    finalImg = colorThresholding(img, minThresh, maxThresh)
 
     while True:
-        cv2.imshow('closing in Color', ClosingRGB)
+        cv2.imshow('Skysubtract + closing + open', finalImg)
 
         key = cv2.waitKey(1)
         if key == 27:
