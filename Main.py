@@ -1,3 +1,5 @@
+import os
+
 import pyrealsense2 as rs
 import numpy as np
 import cv2
@@ -67,8 +69,8 @@ def initialize(bagFileRun):
         pipeline.start(config)
 
         # Create opencv window to render image in
-        cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
-        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
+        #cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+        #cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
         for x in range(5):
             pipeline.wait_for_frames()
@@ -195,11 +197,20 @@ def findTrunk(binayimage):
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
     themplate = cv2.imread("HvidtBillede2.png")
     thempHeight, thempWidth = themplate.shape[:2]
-    themplate1 = themplate[0:thempWidth-100, 0:thempHeight-407]
+    themplate = themplate[0:thempWidth-100, 0:thempHeight-407]
+    print(themplate.shape[0])
+    print((themplate.shape[1]))
+    id = 0
+    for trunk in os.listdir("Trunks"):
+        if os.path.isfile(os.path.join("Trunks", trunk)):
+            id += 1
+        themplatetest = cv2.imread(f"Trunks\\Test{id}.png")
+
+
     #cv2.imshow("f", themplate1)
     #cv2.waitKey(0)
-    H, W = themplate1.shape[:2]
-    outputTemplate = cv2.matchTemplate(ROI, themplate1, cv2.TM_SQDIFF_NORMED)
+    H, W = themplate.shape[:2]
+    outputTemplate = cv2.matchTemplate(ROI, themplate, cv2.TM_SQDIFF_NORMED)
     (y_points, x_points) = np.where(outputTemplate <= 0.1)
     boxes = []
     outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
@@ -207,8 +218,8 @@ def findTrunk(binayimage):
     for (x, y) in zip(x_points, y_points):
         boxes.append((x, y, x + W, y + H))
 
-    boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
-    print(boxes)
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0.1)
+
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
 
@@ -230,7 +241,7 @@ def findGrass(binaryImage):
     template2 = cv2.cvtColor(template2, cv2.COLOR_GRAY2BGR)
     H, W = template2.shape[:2]
 
-    cv2.imshow("template2", template2)
+    #cv2.imshow("template2", template2)
 
     outputTemplate = cv2.matchTemplate(binaryImage, template2, cv2.TM_SQDIFF_NORMED)
 
@@ -258,8 +269,8 @@ def findGrass(binaryImage):
 
     noGrassImage = binaryImage[0: height - slicegrass, 0: width, :]
 
-    cv2.imshow("Output", outputTemplate)
-    cv2.imshow("nograss", noGrassImage)
+    #cv2.imshow("Output", outputTemplate)
+    #cv2.imshow("nograss", noGrassImage)
 
     #cv2.waitKey(0)
 
@@ -299,7 +310,7 @@ def findContures(Closing_bgr, color_image, depth_frame):
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("20221110_143427.bag", True)
+    bagFileRun = ("Training1.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = True
@@ -332,7 +343,7 @@ def main():
         #cv2.imshow("Color Stream", color_removed_background)
         #cv2.imshow("Closing(7, 7)", Closing_bgr)
         #cv2.imshow("CLosing(5, 5)", mask)
-        cv2.imshow("d", depth_masked)
+        #cv2.imshow("d", depth_masked)
 
         findGrass(depth_masked)
 
@@ -352,7 +363,7 @@ def main():
         cv2.imshow("test2", depth_masked_trunk_box)
 
         # if pressed escape exit program
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(500)
 
 
 
