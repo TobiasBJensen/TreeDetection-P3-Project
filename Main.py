@@ -1,3 +1,5 @@
+import math
+
 import pyrealsense2 as rs
 import numpy as np
 import cv2
@@ -71,17 +73,19 @@ def initialize(bagFileRun):
         #cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
         for x in range(5):
-            pipeline.wait_for_frames()
+            frame = pipeline.wait_for_frames()
+            if x == 4:
+                frameNumber = frame.get_frame_number()
 
     except RuntimeError:
         print("Can't read the given file, are you sure it is the right type?")
         main()
 
     finally:
-        return pipeline
+        return pipeline, frameNumber
 
 
-def getFrames(pipeline):
+def getFrames(pipeline, frameNumberStart):
     # Create colorizer object for the depth stream
     colorizer = rs.colorizer()
 
@@ -95,13 +99,20 @@ def getFrames(pipeline):
     frameset = alignD.process(frameset)
     depth_frame = frameset.get_depth_frame()
     color_frame = frameset.get_color_frame()
+    frameNumber = frameset.get_frame_number()
+    print(frameNumberStart)
+    print(frameNumber)
+    if frameNumber <= frameNumberStart:
+        videoDone = True
+    else:
+        videoDone = False
 
     color_image = np.asanyarray(color_frame.get_data())
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
-    return depth_frame, colorized_depth, color_image
+    return depth_frame, colorized_depth, color_image, videoDone
 
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
@@ -209,7 +220,7 @@ def findTrunk(binayimage):
         boxes.append((x, y, x + W, y + H))
 
     boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
-    print(boxes)
+    #print(boxes)
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
 
@@ -218,6 +229,7 @@ def findTrunk(binayimage):
         cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
 
     return inputImg_C
+
 
 def findGrass(binaryImage):
     height, width = binaryImage.shape
@@ -284,8 +296,11 @@ def findContures(Closing_bgr, color_image, depth_frame):
             else:
                 dist = 0
 
+            irlWidth = 2 * math.tan(58/2) * dist
+            irlHeight = 2 * math.tan(87/2) * dist
+
             cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.putText(Closing_bgr_C, f'Width: {width} & Height: {height}', (x, y + height + 10),
+            cv2.putText(Closing_bgr_C, f'Width: {width} = {round(irlWidth)}m & Height: {height} = {round(irlHeight)}m', (x, y + height + 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(Closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
@@ -319,14 +334,14 @@ def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("Training7.bag", True, False)
+    bagFileRun = ("training7.bag", True, False)
 
     # This function initializes the pipline
-    pipeline = initialize(bagFileRun)
+    pipeline, frameNumberStart = initialize(bagFileRun)
 
     while True:
         # This function pulls the frames from the pipeline
-        depth_frame, colorized_depth, color_image = getFrames(pipeline)
+        depth_frame, colorized_depth, color_image = getFrames(pipeline, frameNumberStart)
 
         # Process depth data and isolates objects within a given depth threshold
         modified_colorized_depth, color_removed_background, depth_masked, depth_image= \
