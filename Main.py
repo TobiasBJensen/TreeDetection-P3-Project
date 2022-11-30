@@ -68,10 +68,10 @@ def main():
             # if pressed escape exit program
             key = cv2.waitKey(1)
             currentNumber = frames.get_frame_number()
-            print(startNumber)
-            print(currentNumber)
+            #print(startNumber)
+            #print(currentNumber)
             if currentNumber <= startNumber:
-                print("hit")
+                #print("hit")
                 key = 27
 
             if key == 27:
