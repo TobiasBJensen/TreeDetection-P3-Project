@@ -4,6 +4,7 @@ import cv2
 from sys import platform
 from os import path
 from colorFiltering import colorThresholding
+from imutils.object_detection import non_max_suppression
 
 def pathToFile(bagFileRun):
     if not bagFileRun[1]:
@@ -65,6 +66,10 @@ def initialize(bagFileRun):
         # Start streaming from file
         pipeline.start(config)
 
+        # Create opencv window to render image in
+        #cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+        #cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
+
         for x in range(5):
             pipeline.wait_for_frames()
 
@@ -74,28 +79,6 @@ def initialize(bagFileRun):
 
     finally:
         return pipeline
-
-
-def blobDetection(image):
-    height, width = image.shape
-    img = image[0:height - 150, 0:width]
-    params = cv2.SimpleBlobDetector_Params()
-    #params.minThreshold = 0
-    #params.maxThreshold = 255
-    params.filterByColor = True
-    params.blobColor = 255
-    #params.minDistBetweenBlobs = 50
-    params.filterByArea = False
-    params.minArea = 200
-    params.filterByCircularity = False
-    detector = cv2.SimpleBlobDetector_create(params)
-    keypoints = detector.detect(image)
-    imageWithKeypoints = cv2.drawKeypoints(img, keypoints, img)
-    #imageWithKeypoints = cv2.drawKeypoints(image, keypoints, np.zeros((1,1)), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    #cv2.imshow("key", imageWithKeypoints)
-
-
-    print("blobs:", len(keypoints))
 
 
 def getFrames(pipeline):
@@ -135,12 +118,15 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
     spatial.set_option(rs.option.filter_smooth_delta, 50)
     spatial.set_option(rs.option.holes_fill, 5)
+    # depth threshold
+    threshold = rs.threshold_filter(distance_min, distance_max)
 
     # runs the data through the filters
     frame = depth_to_disparity.process(depth_frame)
     frame = spatial.process(frame)
     frame = disparity_to_depth.process(frame)
     frame = hole_filling.process(frame)
+    thres_frame = threshold.process(frame)
 
     # turn depth data into a numpy array
     depth_image = np.asanyarray(frame.get_data())
@@ -151,34 +137,174 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    #cv2.imshow('hi', depth_mask)
+    #findTrunk(depth_mask)
 
     # uses binary image as mask on color image, so it only shows the objects within the threshold
     masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
 
-    return colorized_depth, masked, depth_mask
+    return colorized_depth, masked, depth_mask, thres_frame
 
 
-def findContures(Closing_bgr, color_image):
+def cutTrunkAndGround(trunk):
+    height, width = trunk.shape[:2]
+    inputImg_threshold = cv2.inRange(trunk, (254, 0, 0), (255, 0, 0))
+
+    contours, hierarchy = cv2.findContours(inputImg_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    box_coor = []
+    for cnt in contours:
+        x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
+        cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
+        box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
+
+    if len(box_coor) > 0:
+        ground = int(sum([item[1] for item in box_coor]) / len(box_coor))
+    else:
+        ground = height
+    #print(ground)
+
+    #print(box_coor)
+    lineBetween = []
+    #print(len(box_coor))
+    box_coor.sort(reverse=True)
+    #print(box_coor)
+    while len(box_coor) > 1:
+        first_coor = box_coor.pop(0)
+        second_coor = box_coor[0]
+        #print(first_coor, second_coor)
+        lineBetween.append(int(second_coor[0] + (first_coor[0] - second_coor[0])/2))
+
+    #print(lineBetween)
+    for obj in lineBetween:
+        cv2.rectangle(trunk, (obj-5, 0), (obj+5, height), (0, 0, 0), -1)
+
+    cv2.rectangle(trunk, (0, ground), (width, height), (0, 0, 0), -1)
+    #cv2.imshow("Output", outputTemplate)
+    #cv2.imshow("ROI", ROI)
+
+    trunk = cv2.cvtColor(trunk, cv2.COLOR_BGR2GRAY)
+
+    return trunk
+
+
+def findTrunk(binayimage):
+    inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
+    height, width = binayimage.shape
+    ROI = binayimage[(height // 2)+20:height-70, 0:width]
+    ROIh, ROIw = ROI.shape
+    ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
+    themplate = cv2.imread("HvidtBillede2.png")
+    thempHeight, thempWidth = themplate.shape[:2]
+    themplate1 = themplate[0:thempWidth-100, 0:thempHeight-407]
+    #cv2.imshow("f", themplate1)
+    #cv2.waitKey(0)
+    H, W = themplate1.shape[:2]
+    outputTemplate = cv2.matchTemplate(ROI, themplate1, cv2.TM_SQDIFF_NORMED)
+    (y_points, x_points) = np.where(outputTemplate <= 0.1)
+    boxes = []
+    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+
+    for (x, y) in zip(x_points, y_points):
+        boxes.append((x, y, x + W, y + H))
+
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
+    print(boxes)
+    inputImg_C = inputImg.copy()
+    for (x1, y1, x2, y2) in boxes:
+
+        cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
+        cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
+        cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
+
+    return inputImg_C
+
+def findGrass(binaryImage):
+    height, width = binaryImage.shape
+
+    binaryImage = cv2.cvtColor(binaryImage, cv2.COLOR_GRAY2BGR)
+
+
+    cv2.imshow("binaryImageInput", binaryImage)
+
+    template2 = np.full((1, width), 255, dtype=np.uint8)
+    template2 = cv2.cvtColor(template2, cv2.COLOR_GRAY2BGR)
+    H, W = template2.shape[:2]
+
+    cv2.imshow("template2", template2)
+
+    outputTemplate = cv2.matchTemplate(binaryImage, template2, cv2.TM_SQDIFF_NORMED)
+
+    (y_points, x_points) = np.where(outputTemplate <= 0.1)
+
+    boxes = []
+
+    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+
+    for (x, y) in zip(x_points, y_points):
+        boxes.append((x, y, x + W, y + H))
+
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
+    #print(boxes)
+
+    for (x1, y1, x2, y2) in boxes:
+        cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
+
+    slicegrass = 0
+
+    (y_grass, x_grass) = np.where((outputTemplate == (255, 0, 0)).all(axis=2))
+
+    for (x, y) in zip(x_grass, y_grass):
+        slicegrass += 1
+
+    noGrassImage = binaryImage[0: height - slicegrass, 0: width, :]
+
+    cv2.imshow("Output", outputTemplate)
+    cv2.imshow("nograss", noGrassImage)
+
+    #cv2.waitKey(0)
+
+def findContures(Closing_bgr, color_image, depth_frame):
     contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
     Closing_bgr_C = Closing_bgr.copy()
     color_image_C = color_image.copy()
     Closing_bgr_C = cv2.cvtColor(Closing_bgr_C, cv2.COLOR_GRAY2BGR)
     #print(contours)
+    depth_image = np.asanyarray(depth_frame.get_data())
     for cnt in contours:
-        if cv2.contourArea(cnt) > 1000:
+        if cv2.contourArea(cnt) > 2000:
             x, y, width, height = cv2.boundingRect(cnt)
 
-            cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            box_dist = depth_image[y:y + height, x:x + width]
+            box_dist = box_dist.reshape((box_dist.shape[0] * box_dist.shape[1], 1))
+            box_dist = box_dist[np.nonzero(box_dist)]
 
+            if len(box_dist):
+               dist = (sum(box_dist) / len(box_dist))/1000
+            else:
+                dist = 0
+
+            cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.putText(Closing_bgr_C, f'Width: {width} & Height: {height}', (x, y + height + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(Closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+
+            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.putText(color_image_C, f'Width: {width} & Height: {height}', (x, y + height + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(color_image_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     return Closing_bgr_C, color_image_C
 
 
-def imageShow(bagFileRun, color_image, binary_image, depth_binary):
-    cv2.imshow("Binary Box", binary_image)
-    cv2.imshow("Color Box", color_image)
+def imageShow(bagFileRun, depth_binary, color_box, depth_box, trunk_box):
+    # cv2.imshow("Binary", binary_image)
+    # cv2.imshow("Color", color_image)
+    cv2.imshow("Trunk Box", trunk_box)
     cv2.imshow("Depth Binary", depth_binary)
-
+    cv2.imshow("Depth Box", depth_box)
+    cv2.imshow("Color Box", color_box)
 
     # if pressed escape exit program
     key = cv2.waitKey(1)
@@ -189,35 +315,11 @@ def imageShow(bagFileRun, color_image, binary_image, depth_binary):
         exit()
 
 
-def simplegrass(image):
-
-    params = cv2.SimpleBlobDetector_Params()
-    params.filterByColor = True
-    params.blobColor = 255
-    params.filterByArea = True
-    params.minArea = 5000
-    params.maxArea = 1000000
-    params.filterByCircularity = False
-    params.filterByInertia = False
-    params.filterByConvexity = False
-
-
-def findCanopy(image):
-    height, width = image.shape
-    img = image[0:height - 150, 0:width]
-
-    contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-    cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
-
-    cv2.imshow("edge", img)
-
-
 def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("Training2.bag", True, False)
+    bagFileRun = ("Training7.bag", True, False)
 
     # This function initializes the pipline
     pipeline = initialize(bagFileRun)
@@ -227,20 +329,27 @@ def main():
         depth_frame, colorized_depth, color_image = getFrames(pipeline)
 
         # Process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background, depth_binary = \
+        modified_colorized_depth, color_removed_background, depth_masked, depth_image= \
             removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
 
         # Process color data and isolates objects within a given color threshold
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
-        Closing_bgr, Opening_bgr, mask = \
-            colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((7, 7), np.uint8))
+        removeSky = colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
 
-        # Finds contures and sets bounding boxes around the trees
-        Closing_bgr_box, color_image_box = findContures(Closing_bgr, color_image)
+        findGrass(depth_masked)
+
+        trunk_box = findTrunk(depth_masked)
+        trunk_box_C = trunk_box.copy()
+
+        # Uses trunk_box to cut trunk and ground
+        treeCrown_box = cutTrunkAndGround(trunk_box_C)
+
+        # Simple contures used for testing
+        depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image)
 
         # Render images in opencv window
-        imageShow(bagFileRun, Closing_bgr_box, color_image_box, depth_binary)
+        imageShow(bagFileRun, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box)
 
 
 if __name__ == "__main__":
