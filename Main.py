@@ -100,22 +100,22 @@ def getFrames(pipeline, frameNumberStart):
     depth_frame = frameset.get_depth_frame()
     color_frame = frameset.get_color_frame()
     frameNumber = frameset.get_frame_number()
-    print(frameNumberStart)
-    print(frameNumber)
     if frameNumber <= frameNumberStart:
         videoDone = True
     else:
         videoDone = False
+
+    depth_intrinsics = depth_frame.get_profile().as_video_stream_profile().get_intrinsics()
 
     color_image = np.asanyarray(color_frame.get_data())
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
-    return depth_frame, colorized_depth, color_image, videoDone
+    return depth_frame, colorized_depth, color_image, videoDone, depth_intrinsics
 
 
-def removeBackground(depth_frame, color_image, distance_max, distance_min):
+def removeBackground(depth_frame, color_image, sky_binary, distance_max, distance_min):
     # config for the different filters
     # filter for colorizing depth data
     colorizer = rs.colorizer(0)
@@ -146,6 +146,8 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
 
     # generates a binary image showing objects within a given depth threshold to isolate the trees
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
+    #depth_mask = cv2.bitwise_and(depth_mask, sky_binary)
+    cv2.imshow("test5", sky_binary)
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     #cv2.imshow('hi', depth_mask)
@@ -276,7 +278,7 @@ def findGrass(binaryImage):
 
     #cv2.waitKey(0)
 
-def findContures(Closing_bgr, color_image, depth_frame):
+def findContures(Closing_bgr, color_image, depth_frame, depth_intrinsics):
     contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
     Closing_bgr_C = Closing_bgr.copy()
     color_image_C = color_image.copy()
@@ -296,24 +298,29 @@ def findContures(Closing_bgr, color_image, depth_frame):
             else:
                 dist = 0
 
-            irlWidth = 2 * math.tan(58/2) * dist
-            irlHeight = 2 * math.tan(87/2) * dist
+            irlWidth = (dist * width) / depth_intrinsics.fx
+            irlHeight = (dist * height) / depth_intrinsics.fy
 
             cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.putText(Closing_bgr_C, f'Width: {width} = {round(irlWidth)}m & Height: {height} = {round(irlHeight)}m', (x, y + height + 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(Closing_bgr_C, f'Pixel Width: {width} & Pixel Height: {height}',
+                        (x, y + height + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(Closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(Closing_bgr_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
+                        (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
 
             cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.putText(color_image_C, f'Width: {width} & Height: {height}', (x, y + height + 10),
+            cv2.putText(color_image_C, f'Pixel Width: {width} & Pixel Height: {height}', (x, y + height + 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(color_image_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(color_image_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
+                        (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+
     return Closing_bgr_C, color_image_C
 
 
-def imageShow(bagFileRun, depth_binary, color_box, depth_box, trunk_box):
+def imageShow(bagFileRun, videoDone, depth_binary, color_box, depth_box, trunk_box):
     # cv2.imshow("Binary", binary_image)
     # cv2.imshow("Color", color_image)
     cv2.imshow("Trunk Box", trunk_box)
@@ -323,6 +330,8 @@ def imageShow(bagFileRun, depth_binary, color_box, depth_box, trunk_box):
 
     # if pressed escape exit program
     key = cv2.waitKey(1)
+    if videoDone and not bagFileRun[1] and bagFileRun[2]:
+        key = 27
     if key == 27:
         cv2.destroyAllWindows()
         if bagFileRun[2] and not bagFileRun[1]:
@@ -334,23 +343,23 @@ def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("training7.bag", True, False)
+    bagFileRun = ("training8.bag", True, False)
 
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)
 
     while True:
         # This function pulls the frames from the pipeline
-        depth_frame, colorized_depth, color_image = getFrames(pipeline, frameNumberStart)
-
-        # Process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background, depth_masked, depth_image= \
-            removeBackground(depth_frame, color_image, distance_max=4, distance_min=0.2) # distance is in meters
+        depth_frame, colorized_depth, color_image, videoDone, depth_intrinsics = getFrames(pipeline, frameNumberStart)
 
         # Process color data and isolates objects within a given color threshold
         minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
         maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
-        removeSky = colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
+        removeSky, sky_binary = colorThresholding(color_image, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
+
+        # Process depth data and isolates objects within a given depth threshold
+        modified_colorized_depth, color_removed_background, depth_masked, depth_image= \
+            removeBackground(depth_frame, color_image, sky_binary, distance_max=4, distance_min=0.2) # distance is in meters
 
         findGrass(depth_masked)
 
@@ -361,10 +370,10 @@ def main():
         treeCrown_box = cutTrunkAndGround(trunk_box_C)
 
         # Simple contures used for testing
-        depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image)
+        depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image, depth_intrinsics)
 
         # Render images in opencv window
-        imageShow(bagFileRun, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box)
+        imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box)
 
 
 if __name__ == "__main__":
