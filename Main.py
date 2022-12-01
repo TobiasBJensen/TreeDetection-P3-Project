@@ -338,6 +338,8 @@ def imageShow(bagFileRun, videoDone, depth_binary, color_box, depth_box, trunk_b
         if bagFileRun[2] and not bagFileRun[1]:
             main()
         exit()
+def stolpeTemplate():
+    pass
 
 def stolpeDetection(image):
     temp1 = cv2.imread("Template1-1.tif")
@@ -405,6 +407,7 @@ def main():
         cv2.imshow("color", color_image)
 
         stolpeDetection(color_image)
+
 
 
 if __name__ == "__main__":
