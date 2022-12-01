@@ -4,13 +4,24 @@ import pyrealsense2 as rs
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
-
+from os import path
 
 def main():
     try:
+        runOnce = False
         bagfile = input("Input bagfile: ")
         # Path towards a bag file
-        pathToRosBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\Test\\{bagfile}.bag"
+        pathToRosBag = f"trainingBagFiles\\{bagfile}.bag"
+        if not path.isfile(pathToRosBag):
+            pathToRosBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\{bagfile}.bag"
+        elif not path.isfile(pathToRosBag):
+            pathToRosBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\Test\\{bagfile}.bag"
+        if not pathToRosBag:
+            print("The given file can not be found")
+            main()
+        if bagfile == "exit":
+            exit()
+
         align = rs.align(rs.stream.color)
         # Create pipeline
         pipeline = rs.pipeline()
@@ -70,7 +81,7 @@ def main():
             currentNumber = frames.get_frame_number()
             #print(startNumber)
             #print(currentNumber)
-            if currentNumber <= startNumber:
+            if currentNumber <= startNumber and runOnce:
                 #print("hit")
                 key = 27
 
