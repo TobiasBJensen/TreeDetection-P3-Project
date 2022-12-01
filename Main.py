@@ -25,7 +25,7 @@ def pathToFile(bagFileRun):
         pathToBag = f"trainingBagFiles\\{bagFile}"
         # if the file is not in the local folder, then it looks in the external hard drives folder
         if not path.isfile(pathToBag):
-            pathToBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\{bagFile}"
+            pathToBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\test\\{bagFile}"
 
     # runs this part for Mac systems
     if platform == "darwin":
@@ -334,14 +334,14 @@ def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("training7.bag", True, False)
+    bagFileRun = ("test1.bag", False, True)
 
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)
 
     while True:
         # This function pulls the frames from the pipeline
-        depth_frame, colorized_depth, color_image = getFrames(pipeline, frameNumberStart)
+        depth_frame, colorized_depth, color_image, videoDone = getFrames(pipeline, frameNumberStart)
 
         # Process depth data and isolates objects within a given depth threshold
         modified_colorized_depth, color_removed_background, depth_masked, depth_image= \
