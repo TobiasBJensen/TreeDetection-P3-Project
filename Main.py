@@ -338,6 +338,8 @@ def imageShow(bagFileRun, videoDone, depth_binary, color_box, depth_box, trunk_b
         if bagFileRun[2] and not bagFileRun[1]:
             main()
         exit()
+def stolpeTemplate():
+    pass
 
 
 def main():
@@ -375,6 +377,7 @@ def main():
 
         # Render images in opencv window
         imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box)
+
 
 
 if __name__ == "__main__":
