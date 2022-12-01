@@ -339,6 +339,33 @@ def imageShow(bagFileRun, videoDone, depth_binary, color_box, depth_box, trunk_b
             main()
         exit()
 
+def stolpeDetection(image):
+    temp1 = cv2.imread("Template1-1.tif")
+    temp2 = cv2.imread("Template2-1.tif")
+    temp3 = cv2.imread("Template3-1.tif")
+    temp4 = cv2.imread("Template4-1.tif")
+    temp5 = cv2.imread("Template5-1.tif")
+
+
+    templateArray = [temp1, temp2, temp3, temp4, temp5]
+
+    for i in range(len(templateArray)):
+        W, H = templateArray[i].shape[:2]
+        outputTemplate = cv2.matchTemplate(image, templateArray[i], cv2.TM_CCOEFF_NORMED)
+
+        (y_points, x_points) = np.where(outputTemplate >= 0.7)
+        boxes = list()
+
+        for (x, y) in zip(x_points, y_points):
+            boxes.append((x, y, x + W, y + H))
+
+        boxes = non_max_suppression(np.array(boxes))
+
+        for (x1, y1, x2, y2) in boxes:
+            cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 3)
+
+        cv2.imshow("p", image)
+
 
 def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
@@ -375,6 +402,9 @@ def main():
 
         # Render images in opencv window
         imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box)
+        cv2.imshow("color", color_image)
+
+        stolpeDetection(color_image)
 
 
 if __name__ == "__main__":
