@@ -146,8 +146,9 @@ def removeBackground(depth_frame, color_image, sky_binary, distance_max, distanc
 
     # generates a binary image showing objects within a given depth threshold to isolate the trees
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
-    #depth_mask = cv2.bitwise_and(depth_mask, sky_binary)
-    cv2.imshow("test5", sky_binary)
+    depth_mask = cv2.bitwise_and(depth_mask, sky_binary)
+    depth_mask[0:80, 0:depth_frame.width] = 0
+
     # runs closing algoritme on binary image
     depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     #cv2.imshow('hi', depth_mask)

@@ -7,7 +7,7 @@ img = cv2.imread('RGB_color_pic_Color.png')
 minThresh = np.array([230, 230, 230])# ([minB, minG, minR])
 maxThresh = np.array([255, 255, 255])# ([maxB, maxG, maxR])
 
-def colorThresholding(roi, minT, maxT, kernel):
+def colorThresholding(img, minT, maxT, kernel):
     #roi might be deleted
     #roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
     # Color Thresholding for Trunk
