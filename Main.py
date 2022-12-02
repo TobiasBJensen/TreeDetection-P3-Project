@@ -99,7 +99,11 @@ def getFrames(pipeline, frameNumberStart):
     frameset = alignD.process(frameset)
     depth_frame = frameset.get_depth_frame()
     color_frame = frameset.get_color_frame()
+
+    # Gets the frame number
     frameNumber = frameset.get_frame_number()
+
+    # If current frame number is smaller
     if frameNumber <= frameNumberStart:
         videoDone = True
     else:
@@ -161,6 +165,7 @@ def removeBackground(depth_frame, color_image, sky_binary, distance_max, distanc
 
 
 def cutTrunkAndGround(trunk):
+    #
     height, width = trunk.shape[:2]
     inputImg_threshold = cv2.inRange(trunk, (254, 0, 0), (255, 0, 0))
 
@@ -286,9 +291,12 @@ def findContures(Closing_bgr, color_image, depth_frame, depth_intrinsics):
     Closing_bgr_C = cv2.cvtColor(Closing_bgr_C, cv2.COLOR_GRAY2BGR)
     #print(contours)
     depth_image = np.asanyarray(depth_frame.get_data())
+    cv2.drawContours(Closing_bgr_C, contours, -1, (0, 255, 0), 3)
+
     for cnt in contours:
         if cv2.contourArea(cnt) > 2000:
             x, y, width, height = cv2.boundingRect(cnt)
+            area = cv2.contourArea(cnt)
 
             box_dist = depth_image[y:y + height, x:x + width]
             box_dist = box_dist.reshape((box_dist.shape[0] * box_dist.shape[1], 1))
@@ -302,10 +310,12 @@ def findContures(Closing_bgr, color_image, depth_frame, depth_intrinsics):
             irlWidth = (dist * width) / depth_intrinsics.fx
             irlHeight = (dist * height) / depth_intrinsics.fy
 
+
+
             cv2.rectangle(Closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
             cv2.putText(Closing_bgr_C, f'Pixel Width: {width} & Pixel Height: {height}',
                         (x, y + height + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
-            cv2.putText(Closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+            cv2.putText(Closing_bgr_C, f'Depth: {round(dist, 2)}m & Pixel Area: {area}', (x, y + height + 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(Closing_bgr_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
                         (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(0, 255, 0), 1, cv2.LINE_AA)
@@ -329,7 +339,7 @@ def imageShow(bagFileRun, videoDone, depth_binary, color_box, depth_box, trunk_b
     cv2.imshow("Depth Box", depth_box)
     cv2.imshow("Color Box", color_box)
 
-    # if pressed escape exit program
+    # if pressed escape, exit program
     key = cv2.waitKey(1)
     if videoDone and not bagFileRun[1] and bagFileRun[2]:
         key = 27
