@@ -102,8 +102,7 @@ def getFrames(pipeline):
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
-    cv2.imshow("ColorImage", color_image)
-    cv2.waitKey(0)
+
     return depth_frame, colorized_depth, color_image
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
@@ -199,35 +198,56 @@ def findTrunk(binayimage):
     themplate = cv2.imread("HvidtBillede2.png")
     thempHeight, thempWidth = themplate.shape[:2]
     themplate = themplate[0:thempWidth-100, 0:thempHeight-407]
-    print(themplate.shape[0])
-    print((themplate.shape[1]))
-    id = 0
-    for trunk in os.listdir("Trunks"):
-       if os.path.isfile(os.path.join("Trunks", trunk)):
-          id += 1
-          themplatetest = cv2.imread(f"Trunks\\Test{id}.png")
+    numberOfThemplates = 0
+    themplateList = []
+    #for trunk in os.listdir("Trunks"):
+    #    if os.path.isfile(os.path.join("Trunks", trunk)):
+    #        numberOfThemplates += 1
+    #        themplate = cv2.imread(f"Trunks\\Test{numberOfThemplates}.png")
+    #        themplateList.append(themplate)
 
-
-    #cv2.imshow("f", themplate1)
-    #cv2.waitKey(0)
+    #for i in range(numberOfThemplates):
+#
+       #    H, W = themplateList[1].shape[:2]
+    #       outputTemplate = cv2.matchTemplate(ROI, themplateList[i], cv2.TM_SQDIFF_NORMED)
+    #       (y_points, x_points) = np.where(outputTemplate <=0.1)
+    #       boxes = []
+#
+       #    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+    #       print(x_points)
+    #       for (x, y) in zip(x_points, y_points):
+#
+       #        box = (x, y, x + W, y + H)
+    #           print(box)
+    #           boxes.append(box)
+#
+       #        boxes = non_max_suppression(np.array(boxes), overlapThresh=0.1)
+#
+       #    inputImg_C = inputImg.copy()
+    #       for (x1, y1, x2, y2) in boxes:
+#
+       #        cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
+    #           cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
+    #           cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
     H, W = themplate.shape[:2]
     outputTemplate = cv2.matchTemplate(ROI, themplate, cv2.TM_SQDIFF_NORMED)
     (y_points, x_points) = np.where(outputTemplate <= 0.1)
     boxes = []
+
     outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
-
+    print(x_points)
     for (x, y) in zip(x_points, y_points):
-        boxes.append((x, y, x + W, y + H))
+        box = (x, y, x + W, y + H)
+        #print(box)
+        boxes.append(box)
 
-    boxes = non_max_suppression(np.array(boxes), overlapThresh=0.1)
+        boxes = non_max_suppression(np.array(boxes), overlapThresh=0.1)
 
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
-
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
-        cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
-
+        cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0),3)
     return inputImg_C
 
 def findGrass(binaryImage):
