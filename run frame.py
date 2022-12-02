@@ -12,7 +12,7 @@ import os
 # Read list to memory
 def read_list():
     # for reading also binary mode is important
-    with open('test3_color', 'rb') as fp:
+    with open('trainingBagFiles/test3_color', 'rb') as fp:
         n_list = pickle.load(fp)
         return n_list
 
