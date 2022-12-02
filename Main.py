@@ -8,7 +8,7 @@ from os import path
 
 def main():
     try:
-        runOnce = False
+        runOnce = True
         bagfile = input("Input bagfile: ")
         # Path towards a bag file
         pathToRosBag = f"trainingBagFiles\\{bagfile}.bag"
@@ -22,7 +22,7 @@ def main():
         if bagfile == "exit":
             exit()
 
-        align = rs.align(rs.stream.color)
+        align = rs.align(rs.stream.depth)
         # Create pipeline
         pipeline = rs.pipeline()
 
@@ -49,8 +49,10 @@ def main():
 
         for i in range(5):
             if i == 4:
-                frame = pipeline.wait_for_frames()
-                startNumber = frame.get_frame_number()
+                pipeline.wait_for_frames()
+        frames = pipeline.wait_for_frames()
+        startNumber = frames.get_frame_number() + 2
+        frameSet = []
 
         # Streaming loop
         while True:
@@ -81,13 +83,35 @@ def main():
             currentNumber = frames.get_frame_number()
             #print(startNumber)
             #print(currentNumber)
+            frame = color_image, currentNumber
+            frameSet.append(frame)
+
             if currentNumber <= startNumber and runOnce:
                 #print("hit")
-                key = 27
+                cv2.destroyAllWindows()
+                break
 
             if key == 27:
                 cv2.destroyAllWindows()
-                main()
+                break
+        #print("hit")
+        pause = True
+        for frame in frameSet:
+            cv2.imshow("Color Stream", frame[0])
+            print(frame[1])
+            # esc exit, 's' start and 'p'
+            while pause:
+                key = cv2.waitKey(1)
+                if key == ord('s'):
+                    pause = False
+
+            key = cv2.waitKey(60)
+            if key == ord('p'):
+                pause = True
+
+            if key == 27:
+                cv2.destroyAllWindows()
+                exit()
 
     except RuntimeError:
         print("Try again")
