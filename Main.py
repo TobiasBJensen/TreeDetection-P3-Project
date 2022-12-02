@@ -4,7 +4,18 @@ import pyrealsense2 as rs
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
+import os
 from os import path
+import pickle
+
+
+# write list to binary file
+def write_list(a_list):
+    # store list in binary file so 'wb' mode
+    with open('listfile', 'wb') as fp:
+        pickle.dump(a_list, fp)
+        print('Done writing list into a binary file')
+
 
 def main():
     try:
@@ -14,13 +25,17 @@ def main():
         pathToRosBag = f"trainingBagFiles\\{bagfile}.bag"
         if not path.isfile(pathToRosBag):
             pathToRosBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\{bagfile}.bag"
-        elif not path.isfile(pathToRosBag):
-            pathToRosBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\Test\\{bagfile}.bag"
+            if not path.isfile(pathToRosBag):
+                pathToRosBag = f"D:\\Rob3_Gruppe_6_Realsense_data\\BagfileTest\\Test\\{bagfile}.bag"
         if not pathToRosBag:
             print("The given file can not be found")
             main()
         if bagfile == "exit":
             exit()
+
+        # Create opencv window to render image in
+        # cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
         align = rs.align(rs.stream.depth)
         # Create pipeline
@@ -40,10 +55,6 @@ def main():
         # Start streaming from file
         pipeline.start(config)
 
-        # Create opencv window to render image in
-        #cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
-        cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
-
         # Create colorizer object for the depth stream
         colorizer = rs.colorizer()
 
@@ -51,7 +62,7 @@ def main():
             if i == 4:
                 pipeline.wait_for_frames()
         frames = pipeline.wait_for_frames()
-        startNumber = frames.get_frame_number() + 2
+        startNumber = frames.get_frame_number() + 1
         frameSet = []
 
         # Streaming loop
@@ -88,13 +99,14 @@ def main():
 
             if currentNumber <= startNumber and runOnce:
                 #print("hit")
-                cv2.destroyAllWindows()
                 break
 
             if key == 27:
-                cv2.destroyAllWindows()
                 break
-        #print("hit")
+
+        write_list(frameSet)
+
+        num = 1
         pause = True
         for frame in frameSet:
             cv2.imshow("Color Stream", frame[0])
@@ -105,7 +117,12 @@ def main():
                 if key == ord('s'):
                     pause = False
 
-            key = cv2.waitKey(60)
+                if key == ord('c'):
+                    #cv2.imwrite(os.path.join('test', f'tree{num}.jpg'), frame[0])
+                    pause = False
+                    num = num + 1
+
+            key = cv2.waitKey(50)
             if key == ord('p'):
                 pause = True
 
