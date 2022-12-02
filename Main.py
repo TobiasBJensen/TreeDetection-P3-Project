@@ -102,7 +102,8 @@ def getFrames(pipeline):
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
-
+    cv2.imshow("ColorImage", color_image)
+    cv2.waitKey(0)
     return depth_frame, colorized_depth, color_image
 
 def removeBackground(depth_frame, color_image, distance_max, distance_min):
@@ -202,9 +203,9 @@ def findTrunk(binayimage):
     print((themplate.shape[1]))
     id = 0
     for trunk in os.listdir("Trunks"):
-        if os.path.isfile(os.path.join("Trunks", trunk)):
-            id += 1
-        themplatetest = cv2.imread(f"Trunks\\Test{id}.png")
+       if os.path.isfile(os.path.join("Trunks", trunk)):
+          id += 1
+          themplatetest = cv2.imread(f"Trunks\\Test{id}.png")
 
 
     #cv2.imshow("f", themplate1)
@@ -361,9 +362,10 @@ def main():
         depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image)
         cv2.imshow("test", color_image_box)
         cv2.imshow("test2", depth_masked_trunk_box)
-
+        cv2.imshow("ColorImage", color_image)
         # if pressed escape exit program
         key = cv2.waitKey(500)
+
 
 
 
