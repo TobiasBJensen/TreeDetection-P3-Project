@@ -192,62 +192,48 @@ def cutTrunkAndGround(trunk):
 def findTrunk(binayimage):
     inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
     height, width = binayimage.shape
-    ROI = binayimage[(height // 2)+20:height-70, 0:width]
+    ROI = binayimage[(height // 2)+20:height-60, 0:width]
     ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
-    themplate = cv2.imread("HvidtBillede2.png")
-    thempHeight, thempWidth = themplate.shape[:2]
-    themplate = themplate[0:thempWidth-100, 0:thempHeight-407]
     numberOfThemplates = 0
-    themplateList = []
-    #for trunk in os.listdir("Trunks"):
-    #    if os.path.isfile(os.path.join("Trunks", trunk)):
-    #        numberOfThemplates += 1
-    #        themplate = cv2.imread(f"Trunks\\Test{numberOfThemplates}.png")
-    #        themplateList.append(themplate)
+    themplateList = list()
+    for trunk in os.listdir("Trunks"):
+        if os.path.isfile(os.path.join("Trunks", trunk)):
+            numberOfThemplates += 1
+            themplate = cv2.imread(f"Trunks\\Test{numberOfThemplates}.png")
+            themplateList.append(themplate)
 
-    #for i in range(numberOfThemplates):
-#
-       #    H, W = themplateList[1].shape[:2]
-    #       outputTemplate = cv2.matchTemplate(ROI, themplateList[i], cv2.TM_SQDIFF_NORMED)
-    #       (y_points, x_points) = np.where(outputTemplate <=0.1)
-    #       boxes = []
-#
-       #    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
-    #       print(x_points)
-    #       for (x, y) in zip(x_points, y_points):
-#
-       #        box = (x, y, x + W, y + H)
-    #           print(box)
-    #           boxes.append(box)
-#
-       #        boxes = non_max_suppression(np.array(boxes), overlapThresh=0.1)
-#
-       #    inputImg_C = inputImg.copy()
-    #       for (x1, y1, x2, y2) in boxes:
-#
-       #        cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
-    #           cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
-    #           cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
-    H, W = themplate.shape[:2]
-    outputTemplate = cv2.matchTemplate(ROI, themplate, cv2.TM_SQDIFF_NORMED)
-    (y_points, x_points) = np.where(outputTemplate <= 0.1)
-    boxes = []
+    boxes = list()
 
-    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
-    print(x_points)
-    for (x, y) in zip(x_points, y_points):
-        box = (x, y, x + W, y + H)
-        #print(box)
-        boxes.append(box)
+    cv2.imshow("ROI",ROI)
 
-        boxes = non_max_suppression(np.array(boxes), overlapThresh=0.1)
+    for i in range(numberOfThemplates):
+        H, W = themplateList[i].shape[:2]
+        outputTemplate = cv2.matchTemplate(ROI, themplateList[i], cv2.TM_SQDIFF_NORMED)
+
+        (y_points, x_points) = np.where(outputTemplate <= 0.25)
+
+
+        outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+
+        print(x_points)
+        for (x, y) in zip(x_points, y_points):
+
+            box = ((x, y, x + W, y + H))
+
+            boxes.append(box)
+
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0.6)
 
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
+
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
-        cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh), (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0),3)
+        cv2.imshow("f",ROI)
+
+        cv2.rectangle(inputImg_C, (x1, y1 + height - 70 - ROIh), (x2, y2 + height - 70 - ROIh), (255, 0, 0), 3)
+
     return inputImg_C
 
 def findGrass(binaryImage):
@@ -331,7 +317,7 @@ def findContures(Closing_bgr, color_image, depth_frame):
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training1.bag", True)
+    bagFileRun = ("Training7bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = True
