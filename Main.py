@@ -156,7 +156,7 @@ def cutTrunkAndGround(trunk, color_trunk_box):
     box_coor = []
     for cnt in contours:
         x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
-        cv2.rectangle(color_trunk_box, (x, y), (x + cntWidth, y + cntHeight), (0, 255, 0), 1)
+        cv2.rectangle(color_trunk_box, (x, y), (x + cntWidth, y + cntHeight), (120, 255, 0), 2)
         cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
         box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
 
@@ -236,7 +236,7 @@ def findTrunk(binayimage):
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.imshow("f",ROI)
         cv2.waitKey(1)
-        cv2.rectangle(inputImg_C, (x1, y1 + height - 80 - ROIh), (x2, y2 + height - 80 - ROIh), (255, 0, 0), 3)
+        cv2.rectangle(inputImg_C, (x1 -10, y1 + height - 80 - ROIh), (x2 + 10, y2 + height - 80 - ROIh), (255, 0, 0), 3)
 
     return inputImg_C
 
@@ -321,7 +321,7 @@ def findContures(Closing_bgr, color_image, depth_frame):
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training7.bag", True)
+    bagFileRun = ("Training1.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = True
