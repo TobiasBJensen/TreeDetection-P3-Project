@@ -12,7 +12,7 @@ import pickle
 
 def write_list(a_list):
     # store list in binary file so 'wb' mode
-    with open('trainingBagFiles\listfile', 'wb') as fp:
+    with open(f'trainingBagFiles\listfile', 'wb') as fp:
         pickle.dump(a_list, fp)
         print('Done writing list into a binary file')
 
