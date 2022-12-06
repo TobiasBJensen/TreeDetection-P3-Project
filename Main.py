@@ -1,3 +1,5 @@
+import os
+
 from os import path
 from sys import platform
 
@@ -164,7 +166,7 @@ def removeBackground(depth_frame, color_image, sky_binary, distance_max, distanc
     return colorized_depth, masked, depth_mask, thresh_frame
 
 
-def cutTrunkAndGround(trunk):
+def cutTrunkAndGround(trunk, color_trunk_box):
     height, width = trunk.shape[:2]
     inputImg_threshold = cv2.inRange(trunk, (254, 0, 0), (255, 0, 0))
 
@@ -173,6 +175,7 @@ def cutTrunkAndGround(trunk):
     box_coord = []
     for cnt in contours:
         x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
+        cv2.rectangle(color_trunk_box, (x, y), (x + cntWidth, y + cntHeight), (120, 255, 0), 2)
         cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
         cv2.imshow("test_f", trunk)
         box_coord.append((x + int(cntWidth / 2), y + int(cntHeight / 2)))
@@ -204,37 +207,56 @@ def cutTrunkAndGround(trunk):
 
     trunk = cv2.cvtColor(trunk, cv2.COLOR_BGR2GRAY)
 
-    return trunk
+    return trunk, color_trunk_box
 
 
-def findTrunk(binary_image):
-    inputImg = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2BGR)
-    height, width = binary_image.shape
-    ROI = binary_image[(height // 2) + 20:height - 70, 0:width]
+def findTrunk(binayimage):
+    inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
+    height, width = binayimage.shape
+    ROI = binayimage[(height // 2)+20:height-80, 0:width]
     ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
-    template = cv2.imread("HvidtBillede2.png")
-    tempHeight, tempWidth = template.shape[:2]
-    template1 = template[0:tempWidth - 100, 0:tempHeight - 407]
-    # cv2.imshow("f", template1)
-    # cv2.waitKey(0)
-    H, W = template1.shape[:2]
-    outputTemplate = cv2.matchTemplate(ROI, template1, cv2.TM_SQDIFF_NORMED)
-    (y_points, x_points) = np.where(outputTemplate <= 0.1)
-    boxes = []
-    outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+    numberOfThemplates = 0
+    themplateList = list()
+    for trunk in os.listdir("Trunks"):
+        if os.path.isfile(os.path.join("Trunks", trunk)):
+            numberOfThemplates += 1
+            themplate = cv2.imread(f"Trunks\\Test{numberOfThemplates}.png")
+            themplateList.append(themplate)
 
-    for (x, y) in zip(x_points, y_points):
-        boxes.append((x, y, x + W, y + H))
+    boxes = list()
 
-    boxes = non_max_suppression(np.array(boxes), overlapThresh=0)
-    # print(boxes)
+    cv2.imshow("ROI", ROI)
+
+    for i in range(numberOfThemplates):
+        H, W = themplateList[i].shape[:2]
+        outputTemplate = cv2.matchTemplate(ROI, themplateList[i], cv2.TM_SQDIFF_NORMED)
+
+        (y_points, x_points) = np.where(outputTemplate <= 0.28)
+
+
+        outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
+
+        #print(x_points)
+
+        for (x, y) in zip(x_points, y_points):
+
+            box = ((x, y, x + W, y + H))
+            boxes.append(box)
+
+
+
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0.5)
+
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
+
+
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
-        cv2.rectangle(inputImg_C, (x1 - 30, y1 + height - 70 - ROIh),
-                      (x2 + 30, y2 + height - 70 - ROIh), (255, 0, 0), 3)
+        cv2.imshow("f",ROI)
+        cv2.waitKey(1)
+        cv2.rectangle(inputImg_C, (x1 -10, y1 + height - 80 - ROIh), (x2 + 10, y2 + height - 80 - ROIh), (255, 0, 0), 3)
 
     return inputImg_C
 
@@ -278,8 +300,8 @@ def findGrass(binary_image):
 
     noGrassImage = binary_image[0: height - slicegrass, 0: width, :]
 
-    cv2.imshow("Output", outputTemplate)
-    cv2.imshow("no_grass", noGrassImage)
+    # cv2.imshow("Output", outputTemplate)
+    # cv2.imshow("no_grass", noGrassImage)
 
     # cv2.waitKey(0)
 
@@ -398,13 +420,15 @@ def main():
             removeBackground(depth_frame, color_image, sky_binary, distance_max=4,
                              distance_min=0.2)  # distance is in meters
 
-        findGrass(depth_masked)
+        # findGrass(depth_masked)
 
         trunk_box = findTrunk(depth_masked)
         trunk_box_C = trunk_box.copy()
 
         # Uses trunk_box to cut trunk and ground
-        treeCrown_box = cutTrunkAndGround(trunk_box_C)
+        treeCrown_box = cutTrunkAndGround(trunk_box_C, color_image)
+
+        treeCrown_box, color_trunk_box = cutTrunkAndGround(trunk_box, color_image)
 
         # Simple contours used for testing
         depth_masked_trunk_box, color_image_box = findContours(treeCrown_box, color_image, depth_image,
