@@ -311,7 +311,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
     return closing_bgr_C, color_image_C
 
 
-def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trunk_box, fps):
+def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trunk_box, colorized_depth, fps):
     cv2.putText(depth_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     cv2.putText(color_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     color_box = cv2.resize(color_box, (int(848 * 1.5), int(480 * 1.5)), interpolation=cv2.INTER_AREA)
@@ -321,7 +321,7 @@ def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trun
     # cv2.imshow("Depth Binary", depth_binary)
     # cv2.imshow("Depth Box", depth_box)
     cv2.imshow("Color Stream", color_box)
-
+    cv2.imshow("Depth Stream", colorized_depth)
 
     # if pressed escape exit program
     key = cv2.waitKey(1)
@@ -338,7 +338,7 @@ def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("Validation2.bag", True, False)
+    bagFileRun = ("training8.bag", True, False)
 
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)
@@ -368,11 +368,8 @@ def main():
         depth_masked_trunk_box, color_image_box = findContours(treeCrown_box, color_image, depth_image,
                                                                depth_intrinsics)
 
-        cv2.imshow("Depth Stream", colorized_depth)
-        cv2.waitKey(1)
-
         # Render images in opencv window
-        imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, fps)
+        imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, colorized_depth, fps)
 
 
         end_time = time.time() - start_time
