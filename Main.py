@@ -248,6 +248,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
 
     img_height, img_width = closing_bgr.shape
     sensor_y, sensor_x = int(img_height / 2), int(img_width / 2)
+    print(img_width, img_height)
 
     # Creates copies so it does not mess with the originals
     closing_bgr_C = closing_bgr.copy()
@@ -297,7 +298,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
 
             # draws rectangle and writes information for the bounding box in color image
             cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.circle(closing_bgr_C, (x, y), 5, (255, 0, 0), -1)
+            cv2.circle(color_image_C, (x, y), 5, (255, 0, 0), -1)
             cv2.putText(color_image_C, f'Pixel Width: {width} & Pixel Height: {height}', (x, y + height + 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(color_image_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
@@ -313,6 +314,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
 def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trunk_box, fps):
     cv2.putText(depth_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     cv2.putText(color_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+    color_box = cv2.resize(color_box, (int(848 * 1.5), int(480 * 1.5)), interpolation=cv2.INTER_AREA)
     # cv2.imshow("Binary", binary_image)
     # cv2.imshow("Color", color_image)
     # cv2.imshow("Trunk Box", trunk_box)

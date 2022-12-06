@@ -1,17 +1,18 @@
 import cv2
 import numpy as np
-#This function colorThresholding extracts color in defined min and max BGR values.
+# This function colorThresholding extracts color in defined min and max BGR values.
 
 img = cv2.imread('RGB_color_pic_Color.png')
-#Følgende Threshold fjerner himlen
+# Følgende Threshold fjerner himlen
 minThresh = np.array([230, 230, 230])# ([minB, minG, minR])
 maxThresh = np.array([255, 255, 255])# ([maxB, maxG, maxR])
 
+
 def colorThresholding(img, minT, maxT, kernel):
-    #roi might be deleted
-    #roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
+    # roi might be deleted
+    # roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
     # Color Thresholding for Trunk
-    #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV) #Converted to hsv
+    # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV) #Converted to hsv
 
     mask = cv2.inRange(img, minThresh, maxThresh)
     res = cv2.bitwise_and(img, img, mask=mask) #If you want the result at Binary
