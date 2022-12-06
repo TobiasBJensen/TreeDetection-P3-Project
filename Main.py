@@ -7,6 +7,14 @@ import pyrealsense2 as rs
 import time
 from imutils.object_detection import non_max_suppression
 from colorFiltering import colorThresholding
+import pickle
+
+
+def write_list(a_list):
+    # store list in binary file so 'wb' mode
+    with open('trainingBagFiles\listfile', 'wb') as fp:
+        pickle.dump(a_list, fp)
+        print('Done writing list into a binary file')
 
 
 def pathToFile(bagFileRun):
@@ -248,7 +256,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
 
     img_height, img_width = closing_bgr.shape
     sensor_y, sensor_x = int(img_height / 2), int(img_width / 2)
-    print(img_width, img_height)
+    #print(img_width, img_height)
 
     # Creates copies so it does not mess with the originals
     closing_bgr_C = closing_bgr.copy()
@@ -311,7 +319,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
     return closing_bgr_C, color_image_C
 
 
-def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trunk_box, colorized_depth, fps):
+def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trunk_box, colorized_depth, fps, frame_sets):
     cv2.putText(depth_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     cv2.putText(color_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     color_box = cv2.resize(color_box, (int(848 * 1.5), int(480 * 1.5)), interpolation=cv2.INTER_AREA)
@@ -323,12 +331,15 @@ def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trun
     cv2.imshow("Color Stream", color_box)
     cv2.imshow("Depth Stream", colorized_depth)
 
+    frame_sets.append(color_box)
+
     # if pressed escape exit program
     key = cv2.waitKey(1)
     if video_done and not bag_file_run[1] and bag_file_run[2]:
         key = 27
     if key == 27:
         cv2.destroyAllWindows()
+        write_list(frame_sets)
         if bag_file_run[2] and not bag_file_run[1]:
             main()
         exit()
@@ -343,6 +354,7 @@ def main():
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)
 
+    frame_sets = []
     fps = 0
     while True:
         start_time = time.time()
@@ -369,7 +381,7 @@ def main():
                                                                depth_intrinsics)
 
         # Render images in opencv window
-        imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, colorized_depth, fps)
+        imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, colorized_depth, fps, frame_sets)
 
 
         end_time = time.time() - start_time
