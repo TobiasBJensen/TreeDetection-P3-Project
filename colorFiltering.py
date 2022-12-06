@@ -7,7 +7,7 @@ img = cv2.imread('RGB_color_pic_Color.png')
 minThresh = np.array([230, 230, 230])# ([minB, minG, minR])
 maxThresh = np.array([255, 255, 255])# ([maxB, maxG, maxR])
 
-def colorThresholding(roi, minT, maxT, kernel):
+def colorThresholding(img, minT, maxT, kernel):
     #roi might be deleted
     #roi = img[0:720, 120:600] #[y-start : y-stop, x-start: x-stop]
     # Color Thresholding for Trunk
@@ -25,14 +25,16 @@ def colorThresholding(roi, minT, maxT, kernel):
     result = cv2.bitwise_and(img, img, mask=opening) #Color res, after opening/closing
 
     final = cv2.subtract(img, result)
-    return final
+    binary = cv2.bitwise_not(opening)
+    return final, binary
 
 
 def main():
-    finalImg = colorThresholding(img, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
+    finalImg, opening = colorThresholding(img, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
 
     while True:
         cv2.imshow('Skysubtract + closing + open', finalImg)
+        cv2.imshow('test', opening)
 
         key = cv2.waitKey(1)
         if key == 27:
