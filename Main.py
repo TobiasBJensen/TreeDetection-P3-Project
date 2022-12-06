@@ -147,7 +147,7 @@ def removeBackground(depth_frame, color_image, distance_max, distance_min):
     return colorized_depth, masked, depth_mask, thres_frame
 
 
-def cutTrunkAndGround(trunk):
+def cutTrunkAndGround(trunk, color_trunk_box):
     height, width = trunk.shape[:2]
     inputImg_threshold = cv2.inRange(trunk, (254, 0, 0), (255, 0, 0))
 
@@ -156,6 +156,7 @@ def cutTrunkAndGround(trunk):
     box_coor = []
     for cnt in contours:
         x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
+        cv2.rectangle(color_trunk_box, (x, y), (x + cntWidth, y + cntHeight), (0, 255, 0), 1)
         cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
         box_coor.append((x + int(cntWidth/2), y + int(cntHeight/2)))
 
@@ -186,7 +187,7 @@ def cutTrunkAndGround(trunk):
 
     trunk = cv2.cvtColor(trunk, cv2.COLOR_BGR2GRAY)
 
-    return trunk
+    return trunk, color_trunk_box
 
 
 def findTrunk(binayimage):
@@ -205,7 +206,7 @@ def findTrunk(binayimage):
 
     boxes = list()
 
-    cv2.imshow("ROI",ROI)
+    cv2.imshow("ROI", ROI)
 
     for i in range(numberOfThemplates):
         H, W = themplateList[i].shape[:2]
@@ -216,6 +217,7 @@ def findTrunk(binayimage):
 
         outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
 
+        #print(x_points)
 
         for (x, y) in zip(x_points, y_points):
 
@@ -278,10 +280,10 @@ def findGrass(binaryImage):
 
     noGrassImage = binaryImage[0: height - slicegrass, 0: width, :]
 
-    cv2.imshow("Output", outputTemplate)
-    cv2.imshow("nograss", noGrassImage)
+    #cv2.imshow("Output", outputTemplate)
+    #cv2.imshow("nograss", noGrassImage)
 
-    cv2.waitKey(0)
+    #cv2.waitKey(0)
 
 def findContures(Closing_bgr, color_image, depth_frame):
     contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
@@ -319,7 +321,7 @@ def findContures(Closing_bgr, color_image, depth_frame):
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training10.bag", True)
+    bagFileRun = ("Training7bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = True
@@ -364,10 +366,11 @@ def main():
         # v
 
         # Uses trunk_box to cut trunk and ground
-        treeCrown_box = cutTrunkAndGround(trunk_box)
+        treeCrown_box, color_trunk_box = cutTrunkAndGround(trunk_box, color_image)
 
         # Simple contures used for testing
         depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image)
+        cv2.imshow("trunk_box", color_trunk_box)
         cv2.imshow("test", color_image_box)
         #cv2.imshow("test2", depth_masked_trunk_box)
         #cv2.imshow("ColorImage", color_image)
