@@ -192,7 +192,7 @@ def cutTrunkAndGround(trunk):
 def findTrunk(binayimage):
     inputImg = cv2.cvtColor(binayimage, cv2.COLOR_GRAY2BGR)
     height, width = binayimage.shape
-    ROI = binayimage[(height // 2)+20:height-60, 0:width]
+    ROI = binayimage[(height // 2)+20:height-80, 0:width]
     ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
     numberOfThemplates = 0
@@ -211,28 +211,30 @@ def findTrunk(binayimage):
         H, W = themplateList[i].shape[:2]
         outputTemplate = cv2.matchTemplate(ROI, themplateList[i], cv2.TM_SQDIFF_NORMED)
 
-        (y_points, x_points) = np.where(outputTemplate <= 0.25)
+        (y_points, x_points) = np.where(outputTemplate <= 0.28)
 
 
         outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
 
-        print(x_points)
+
         for (x, y) in zip(x_points, y_points):
 
             box = ((x, y, x + W, y + H))
-
             boxes.append(box)
 
-    boxes = non_max_suppression(np.array(boxes), overlapThresh=0.6)
+
+
+    boxes = non_max_suppression(np.array(boxes), overlapThresh=0.5)
 
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
 
+
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.imshow("f",ROI)
-
-        cv2.rectangle(inputImg_C, (x1, y1 + height - 70 - ROIh), (x2, y2 + height - 70 - ROIh), (255, 0, 0), 3)
+        cv2.waitKey(1)
+        cv2.rectangle(inputImg_C, (x1, y1 + height - 80 - ROIh), (x2, y2 + height - 80 - ROIh), (255, 0, 0), 3)
 
     return inputImg_C
 
@@ -248,7 +250,7 @@ def findGrass(binaryImage):
     template2 = cv2.cvtColor(template2, cv2.COLOR_GRAY2BGR)
     H, W = template2.shape[:2]
 
-    #cv2.imshow("template2", template2)
+    cv2.imshow("template2", template2)
 
     outputTemplate = cv2.matchTemplate(binaryImage, template2, cv2.TM_SQDIFF_NORMED)
 
@@ -276,10 +278,10 @@ def findGrass(binaryImage):
 
     noGrassImage = binaryImage[0: height - slicegrass, 0: width, :]
 
-    #cv2.imshow("Output", outputTemplate)
-    #cv2.imshow("nograss", noGrassImage)
+    cv2.imshow("Output", outputTemplate)
+    cv2.imshow("nograss", noGrassImage)
 
-    #cv2.waitKey(0)
+    cv2.waitKey(0)
 
 def findContures(Closing_bgr, color_image, depth_frame):
     contours, hierarchy = cv2.findContours(Closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
@@ -317,7 +319,7 @@ def findContures(Closing_bgr, color_image, depth_frame):
 
 def main():
     # If you want to run the same file a lot just write the name of the file below and set bagFileRun to True
-    bagFileRun = ("Training7bag", True)
+    bagFileRun = ("Training10.bag", True)
 
     # if you want to loop the script then using input, to run through different bag files. Set loopScript to True
     loopScript = True
@@ -346,13 +348,13 @@ def main():
         Closing_bgr2, Opening_bgr, mask = \
             colorThresholding(color_removed_background, minThresh, maxThresh, kernel=np.ones((5, 5), np.uint8))
         # Render image in opencv window
-        cv2.imshow("Depth Stream", colorized_depth)
+        #cv2.imshow("Depth Stream", colorized_depth)
         #cv2.imshow("Color Stream", color_removed_background)
         #cv2.imshow("Closing(7, 7)", Closing_bgr)
         #cv2.imshow("CLosing(5, 5)", mask)
         #cv2.imshow("d", depth_masked)
 
-        findGrass(depth_masked)
+        #findGrass(depth_masked)
 
         trunk_box = findTrunk(depth_masked)
         cv2.imshow("Trunk", trunk_box)
@@ -367,10 +369,10 @@ def main():
         # Simple contures used for testing
         depth_masked_trunk_box, color_image_box = findContures(treeCrown_box, color_image, depth_image)
         cv2.imshow("test", color_image_box)
-        cv2.imshow("test2", depth_masked_trunk_box)
-        cv2.imshow("ColorImage", color_image)
+        #cv2.imshow("test2", depth_masked_trunk_box)
+        #cv2.imshow("ColorImage", color_image)
         # if pressed escape exit program
-        key = cv2.waitKey(500)
+        key = cv2.waitKey(1)
 
 
 
