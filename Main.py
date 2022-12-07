@@ -254,10 +254,6 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
     # finds contours
     contours, hierarchy = cv2.findContours(closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
 
-    img_height, img_width = closing_bgr.shape
-    sensor_y, sensor_x = int(img_height / 2), int(img_width / 2)
-    #print(img_width, img_height)
-
     # Creates copies so it does not mess with the originals
     closing_bgr_C = closing_bgr.copy()
     color_image_C = color_image.copy()
@@ -287,8 +283,8 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
             irlHeight = (dist * height) / depth_intrinsics.fy
 
             # position relative to sensor
-            x_coord = (x - sensor_x)
-            y_coord = -(y - sensor_y)
+            x_coord = (x - depth_intrinsics.ppx)
+            y_coord = -(y - depth_intrinsics.ppy)
             irl_x = (dist * x_coord) / depth_intrinsics.fx
             irl_y = (dist * y_coord) / depth_intrinsics.fy
 
