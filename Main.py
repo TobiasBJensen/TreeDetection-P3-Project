@@ -289,7 +289,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
             irl_y = (dist * y_coord) / depth_intrinsics.fy
 
             # draws rectangle and writes information for the bounding box in binary image
-            cv2.rectangle(closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.rectangle(closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 1)
             #cv2.circle(closing_bgr_C, (x, y), 5, (255, 0, 0), -1)
             #cv2.putText(closing_bgr_C, f'Pixel Width: {width} & Pixel Height: {height}',
             #            (x, y + height + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
@@ -301,7 +301,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
             #            (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
 
             # draws rectangle and writes information for the bounding box in color image
-            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
+            cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 1)
             #cv2.circle(color_image_C, (x, y), 5, (255, 0, 0), -1)
             #cv2.putText(color_image_C, f'Pixel Width: {width} & Pixel Height: {height}', (x, y + height + 10),
             #            cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
