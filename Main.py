@@ -290,27 +290,27 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
 
             # draws rectangle and writes information for the bounding box in binary image
             cv2.rectangle(closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 1)
-            #cv2.circle(closing_bgr_C, (x, y), 5, (255, 0, 0), -1)
-            #cv2.putText(closing_bgr_C, f'Pixel Width: {width} & Pixel Height: {height}',
-            #            (x, y + height + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            #cv2.putText(closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
-            #            cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            #cv2.putText(closing_bgr_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
-            #            (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            #cv2.putText(closing_bgr_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
-            #            (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.circle(closing_bgr_C, (x, y), 5, (255, 0, 0), -1)
+            cv2.putText(closing_bgr_C, f'Pixel Width: {width} & Pixel Height: {height}',
+                        (x, y + height + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(closing_bgr_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(closing_bgr_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
+                        (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(closing_bgr_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
+                        (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
 
             # draws rectangle and writes information for the bounding box in color image
             cv2.rectangle(color_image_C, (x, y), (x + width, y + height), (0, 0, 255), 1)
-            #cv2.circle(color_image_C, (x, y), 5, (255, 0, 0), -1)
-            #cv2.putText(color_image_C, f'Pixel Width: {width} & Pixel Height: {height}', (x, y + height + 10),
-            #            cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            #cv2.putText(color_image_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
-            #            cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            #cv2.putText(color_image_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
-            #            (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            #cv2.putText(color_image_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
-            #            (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.circle(color_image_C, (x, y), 5, (255, 0, 0), -1)
+            cv2.putText(color_image_C, f'Pixel Width: {width} & Pixel Height: {height}', (x, y + height + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(color_image_C, f'Depth: {round(dist, 2)}m', (x, y + height + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(color_image_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
+                        (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(color_image_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
+                        (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
 
     return closing_bgr_C, color_image_C
 
@@ -329,7 +329,7 @@ def imageShow(bag_file_run, video_done, color_image, depth_binary, color_box, de
     cv2.imshow("Depth Stream", colorized_depth)
     # dim = color_box.shape
     # print(dim)
-    frame_sets.append(color_image)
+    frame_sets.append((color_image, color_box))
 
     # if pressed escape exit program
     key = cv2.waitKey(1)
@@ -347,7 +347,7 @@ def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("training8.bag", True, False)
+    bagFileRun = ("test3.bag", True, False)
 
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)

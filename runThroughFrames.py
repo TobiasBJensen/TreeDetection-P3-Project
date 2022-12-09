@@ -20,18 +20,16 @@ def click_event(event, x, y, flags, param):
 # Read list to memory
 def read_list():
     # for reading also binary mode is important
-    with open('trainingBagFiles/listfile', 'rb') as fp:
+    with open('trainingBagFiles/test3', 'rb') as fp:
         n_list = pickle.load(fp)
         return n_list
 
 
 frameSet = read_list()
-test = cv2.imread("test/Test1.9.png")
-test_mask = cv2.inRange(test, (250, 50, 0), (255, 60, 0))
 
-temp_color = cv2.imread("test/tree1.png")
+temp_color = cv2.imread("test/Test3.10.png")
 temp_gray = cv2.cvtColor(temp_color, cv2.COLOR_BGR2GRAY)
-mask = cv2.inRange(temp_color, (0, 0, 254), (0, 0, 255))
+test_mask = cv2.inRange(temp_color, (250, 50, 0), (255, 60, 0))
 
 # test
 #cv2.waitKey(0)
@@ -41,11 +39,13 @@ mask = cv2.inRange(temp_color, (0, 0, 254), (0, 0, 255))
 num = 1
 pause = True
 for frame in frameSet:
-    cv2.imshow("Color Stream", frame)
+    cv2.imshow("Color Stream", frame[1])
 
-    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame_gray = cv2.cvtColor(frame[0], cv2.COLOR_BGR2GRAY)
     outputTemplate = cv2.matchTemplate(frame_gray, temp_gray, cv2.TM_SQDIFF_NORMED)
-    if outputTemplate <= 0.15:
+    if outputTemplate <= 0.3:
+        temp_gray = cv2.cvtColor(frame[1], cv2.COLOR_BGR2GRAY)
+        mask = cv2.inRange(frame[1], (0, 0, 254), (0, 0, 255))
         h, w = mask.shape[:2]
         mask_zeros = np.zeros((h + 2, w + 2), np.uint8)
         mask_inv = cv2.bitwise_not(mask)
@@ -66,6 +66,9 @@ for frame in frameSet:
             area = cv2.contourArea(cnt)
             print(f"Nr: {count} have pixel area: {area}")
             M = cv2.moments(cnt)
+            if M['m00'] == 0:
+                M['m00'] = 1
+
             cx = int(M['m10'] / M['m00'])
             cy = int(M['m01'] / M['m00'])
             cv2.putText(sub, f'Nr: {count}', (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
@@ -83,11 +86,43 @@ for frame in frameSet:
             pause = False
 
         if key == ord('c'):
-            cv2.imwrite(os.path.join('test', f'tree{num}.png'), frame)
+            temp_gray = cv2.cvtColor(frame[1], cv2.COLOR_BGR2GRAY)
+            mask = cv2.inRange(frame[1], (0, 0, 254), (0, 0, 255))
+            h, w = mask.shape[:2]
+            mask_zeros = np.zeros((h + 2, w + 2), np.uint8)
+            mask_inv = cv2.bitwise_not(mask)
+            flood_mask = mask.copy()
+            flood_test_mask = test_mask.copy()
+            cv2.imshow("flood", mask)
+            cv2.setMouseCallback("flood", click_event)
+            cv2.waitKey(0)
+            cv2.destroyWindow("flood")
+            cv2.floodFill(flood_mask, mask_zeros, (click_x, click_y), 255)
+            cv2.floodFill(flood_test_mask, mask_zeros, (0, 0), 255)
+            flood_test_mask = cv2.bitwise_not(flood_test_mask)
+            sub = cv2.bitwise_and(flood_test_mask, flood_test_mask, mask=mask_inv)
+            contours, hierarchy = cv2.findContours(sub, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+            sub = cv2.cvtColor(sub, cv2.COLOR_GRAY2BGR)
+            count = 1
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                print(f"Nr: {count} have pixel area: {area}")
+                M = cv2.moments(cnt)
+                if M['m00'] == 0:
+                    M['m00'] = 1
+
+                cx = int(M['m10'] / M['m00'])
+                cy = int(M['m01'] / M['m00'])
+                cv2.putText(sub, f'Nr: {count}', (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
+                count = count + 1
+            cv2.imshow("test", sub)
+            print("")
+            cv2.waitKey(0)
+            cv2.destroyWindow("test")
             pause = False
             num = num + 1
 
-    key = cv2.waitKey(180)
+    key = cv2.waitKey(200)
     if key == ord('p'):
         pause = True
 
