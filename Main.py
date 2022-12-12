@@ -238,6 +238,9 @@ def findTrunk(binaryImage):
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(inputImg_C, (x1 - 10, y1 + height - 80 - ROIh),
                       (x2 + 10, y2 + height - 80 - ROIh), (255, 0, 0), 3)
+        #cv2.rectangle(inputImg_C, (0,((height // 2)+20)), (0+ROIw,((height // 2)+20+ROIh)), (255,50,125), 3)
+
+
 
     return inputImg_C
 
