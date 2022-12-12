@@ -109,7 +109,7 @@ def getFrames(pipeline, frame_number_start):
         videoDone = False
 
     depth_intrinsics = depth_frame.get_profile().as_video_stream_profile().get_intrinsics()
-
+    print(depth_intrinsics.ppx, depth_intrinsics.ppy)
     color_image = np.asanyarray(color_frame.get_data())
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
@@ -267,7 +267,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
         if cv2.contourArea(cnt) > 2000:
             # finds bounding box for the objects
             x, y, width, height = cv2.boundingRect(cnt)
-
+            #print(x, y, width, height)
             # finds the avg. distance to the object
             box_dist = depth_image[y:y + height, x:x + width]
             box_dist = box_dist.reshape((box_dist.shape[0] * box_dist.shape[1], 1))
@@ -282,11 +282,14 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
             irlHeight = (dist * height) / depth_intrinsics.fy
 
             # position relative to sensor
-            x_coord = (x - sensor_x)
-            y_coord = -(y - sensor_y)
+            x_coord = (x - depth_intrinsics.ppx)
+            y_coord = -(y - depth_intrinsics.ppy)
             irl_x = (dist * x_coord) / depth_intrinsics.fx
             irl_y = (dist * y_coord) / depth_intrinsics.fy
 
+            pos1 = rs.rs2_deproject_pixel_to_point(depth_intrinsics, (x, y), dist)
+            pos2 = rs.rs2_deproject_pixel_to_point(depth_intrinsics, (x + width, y + height), dist)
+            print(pos1, pos2)
             # draws rectangle and writes information for the bounding box in binary image
             cv2.rectangle(closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
             cv2.circle(closing_bgr_C, (x, y), 5, (255, 0, 0), -1)
@@ -324,7 +327,7 @@ def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trun
     # cv2.imshow("Depth Binary", depth_binary)
     # cv2.imshow("Depth Box", depth_box)
     cv2.imshow("Color Stream", color_box)
-    cv2.imshow("Depth Stream", colorized_depth)
+    cv2.imshow("Depth Stream", depth_box)
 
     # if pressed escape exit program
     key = cv2.waitKey(1)
