@@ -27,7 +27,7 @@ def read_list():
 
 frameSet = read_list()
 
-temp_color = cv2.imread("test/Test3.10.png")
+temp_color = cv2.imread("test/Test3.3.png")
 temp_gray = cv2.cvtColor(temp_color, cv2.COLOR_BGR2GRAY)
 test_mask = cv2.inRange(temp_color, (250, 50, 0), (255, 60, 0))
 

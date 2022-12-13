@@ -104,6 +104,7 @@ def getFrames(pipeline, frame_number_start):
     alignD = rs.align(rs.stream.depth)
     # Align depth to RGB
     # alignC = rs.align(rs.stream.color)
+    hole_filling = rs.hole_filling_filter(2)
 
     # Get frames
     frame_set = pipeline.wait_for_frames()
@@ -121,6 +122,7 @@ def getFrames(pipeline, frame_number_start):
     color_image = np.asanyarray(color_frame.get_data())
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
+    depth_image = np.asanyarray(depth_frame.get_data())
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
     return depth_frame, colorized_depth, color_image, videoDone, depth_intrinsics
@@ -139,7 +141,7 @@ def removeBackground(depth_frame, color_image, sky_binary, distance_max, distanc
     spatial.set_option(rs.option.filter_magnitude, 5)
     spatial.set_option(rs.option.filter_smooth_alpha, 0.3)
     spatial.set_option(rs.option.filter_smooth_delta, 50)
-    spatial.set_option(rs.option.holes_fill, 5)
+    spatial.set_option(rs.option.holes_fill, 2)
     # depth threshold
     threshold = rs.threshold_filter(distance_min, distance_max)
 
@@ -152,21 +154,23 @@ def removeBackground(depth_frame, color_image, sky_binary, distance_max, distanc
 
     # turn depth data into a numpy array
     depth_image = np.asanyarray(frame.get_data())
+    depth_image_before = np.asanyarray(depth_frame.get_data())
+
     # colorize the depth data and turn it into a numpy array
     colorized_depth = np.asanyarray(colorizer.colorize(frame).get_data())
 
     # generates a binary image showing objects within a given depth threshold to isolate the trees
     depth_mask = cv2.inRange(depth_image, distance_min * 1000, distance_max * 1000)
-    depth_mask = cv2.bitwise_and(depth_mask, sky_binary)
-    depth_mask[0:80, 0:depth_frame.width] = 0
-
+    depth_mask_no_sky = cv2.bitwise_and(depth_mask, sky_binary)
+    depth_mask_no_sky[0:80, 0:depth_frame.width] = 0
+    depth_mask_before = cv2.inRange(depth_image_before, distance_min * 1000, distance_max * 1000)
     # runs closing algorithme on binary image
-    depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    depth_mask_no_sky = cv2.morphologyEx(depth_mask_no_sky, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
     # uses binary image as mask on color image, so it only shows the objects within the threshold
-    masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask)
+    masked = cv2.bitwise_and(color_image, color_image, mask=depth_mask_no_sky)
 
-    return colorized_depth, masked, depth_mask, thresh_frame
+    return colorized_depth, masked, depth_mask_no_sky, thresh_frame, depth_mask_before
 
 
 def cutTrunkAndGround(trunk, color_trunk_box):
@@ -309,13 +313,13 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(color_image_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
                         (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            cv2.putText(color_image_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
+            cv2.putText(color_image_C, f'Position x: {round(irl_x, 2)}m y: {round(dist, 2)}m z: {round(irl_y, 2)}m',
                         (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
 
     return closing_bgr_C, color_image_C
 
 
-def imageShow(bag_file_run, video_done, color_image, depth_binary, color_box, depth_box, trunk_box, colorized_depth, fps, frame_sets):
+def imageShow(bag_file_run, video_done, depth_binary_before, color_image, depth_binary, color_box, depth_box, trunk_box, colorized_depth, fps, frame_sets):
     cv2.putText(depth_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     cv2.putText(color_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     cv2.putText(color_image, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
@@ -323,8 +327,9 @@ def imageShow(bag_file_run, video_done, color_image, depth_binary, color_box, de
     # cv2.imshow("Binary", binary_image)
     # cv2.imshow("Color", color_image)
     # cv2.imshow("Trunk Box", trunk_box)
-    # cv2.imshow("Depth Binary", depth_binary)
-    # cv2.imshow("Depth Box", depth_box)
+    cv2.imshow("Depth Binary 1", depth_binary)
+    cv2.imshow("Depth Binary 2", depth_binary_before)
+    cv2.imshow("Depth Box", depth_box)
     cv2.imshow("Color Stream", color_box)
     cv2.imshow("Depth Stream", colorized_depth)
     # dim = color_box.shape
@@ -347,7 +352,7 @@ def main():
     # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # if you want to loop the script then using input, to run through different bag files. Set last argument to True
-    bagFileRun = ("test3.bag", True, False)
+    bagFileRun = ("Training8.bag", True, False)
 
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)
@@ -365,7 +370,7 @@ def main():
         removeSky, sky_binary = colorThresholding(color_image, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
 
         # Process depth data and isolates objects within a given depth threshold
-        modified_colorized_depth, color_removed_background, depth_masked, depth_image = \
+        modified_colorized_depth, color_removed_background, depth_masked, depth_image, depth_masked_before = \
             removeBackground(depth_frame, color_image, sky_binary, distance_max=4,
                              distance_min=0.2)  # distance is in meters
 
@@ -379,7 +384,7 @@ def main():
                                                                depth_intrinsics)
 
         # Render images in opencv window
-        imageShow(bagFileRun, videoDone, color_image, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, colorized_depth, fps, frame_sets)
+        imageShow(bagFileRun, videoDone, depth_masked_before, color_image, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, colorized_depth, fps, frame_sets)
 
 
         end_time = time.time() - start_time
