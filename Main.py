@@ -62,7 +62,7 @@ def initialize(bagFileRun):
         rs.config.enable_device_from_file(config, pathToRosBag)
 
         # Configure the pipeline to stream both the depth and color streams
-        #  must be setup the same way they were recorded
+        # must be setup the same way they were recorded
         # You can use RealSense viewer to figure out what streams, and their corresponding formats and
         # FPS, are available in a bag file
         config.enable_stream(rs.stream.depth, rs.format.z16, 30)
@@ -75,11 +75,14 @@ def initialize(bagFileRun):
         cv2.namedWindow("Depth Stream", cv2.WINDOW_AUTOSIZE)
         cv2.namedWindow("Color Stream", cv2.WINDOW_AUTOSIZE)
 
+        # Skips the first 5 frames, because the camera uses them to calibrate
         for x in range(5):
             frame = pipeline.wait_for_frames()
+            # saves the number of a frame to know when it has looped
             if x == 4:
                 frame_number = frame.get_frame_number()
 
+    # If the pipeline can't read the file, it will start at main again
     except RuntimeError:
         print("Can't read the given file, are you sure it is the right type?")
         main()
@@ -102,17 +105,21 @@ def getFrames(pipeline, frame_number_start):
     frame_set = alignD.process(frame_set)
     depth_frame = frame_set.get_depth_frame()
     color_frame = frame_set.get_color_frame()
+    # Get frame number and check if the video has looped
     frameNumber = frame_set.get_frame_number()
     if frameNumber <= frame_number_start:
         videoDone = True
     else:
         videoDone = False
 
+    # Gets camera focal length and principal point of image for depth frame
     depth_intrinsics = depth_frame.get_profile().as_video_stream_profile().get_intrinsics()
-    print(depth_intrinsics.ppx, depth_intrinsics.ppy)
+
+    # Converts color frame to np array and switches from RGB to BGR
     color_image = np.asanyarray(color_frame.get_data())
     color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
 
+    # Displays depth data as a colorized image and converts it to np array
     colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
     return depth_frame, colorized_depth, color_image, videoDone, depth_intrinsics
@@ -163,35 +170,35 @@ def removeBackground(depth_frame, color_image, sky_binary, distance_max, distanc
 
 def cutTrunkAndGround(trunk, color_trunk_box):
     height, width = trunk.shape[:2]
+
+    # Threshold for rectangles found in findTrunk
     inputImg_threshold = cv2.inRange(trunk, (254, 0, 0), (255, 0, 0))
 
+    # Finds rectangles that mark the same trunk
     contours, hierarchy = cv2.findContours(inputImg_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     box_coord = []
+    # Removes the trunks found
     for cnt in contours:
         x, y, cntWidth, cntHeight = cv2.boundingRect(cnt)
         cv2.rectangle(color_trunk_box, (x, y), (x + cntWidth, y + cntHeight), (120, 255, 0), 2)
         cv2.rectangle(trunk, (x, y), (x + cntWidth, y + cntHeight), (0, 0, 0), -1)
         box_coord.append((x + int(cntWidth / 2), y + int(cntHeight / 2)))
 
+    # If a trunk is found, remove the ground under
     if len(box_coord) > 0:
         ground = int(sum([item[1] for item in box_coord]) / len(box_coord))
     else:
         ground = height
-    # print(ground)
 
-    # print(box_coord)
+    # If multiple trunks is found, draw a line between them to separate tree crowns
     lineBetween = []
-    # print(len(box_coord))
     box_coord.sort(reverse=True)
-    # print(box_coord)
     while len(box_coord) > 1:
         first_coord = box_coord.pop(0)
         second_coord = box_coord[0]
-        # print(first_coord, second_coord)
         lineBetween.append(int(second_coord[0] + (first_coord[0] - second_coord[0]) / 2))
 
-    # print(lineBetween)
     for obj in lineBetween:
         cv2.rectangle(trunk, (obj - 5, 0), (obj + 5, height), (0, 0, 0), -1)
 
@@ -238,9 +245,7 @@ def findTrunk(binaryImage):
         cv2.rectangle(ROI, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.rectangle(inputImg_C, (x1 - 10, y1 + height - 80 - ROIh),
                       (x2 + 10, y2 + height - 80 - ROIh), (255, 0, 0), 3)
-        #cv2.rectangle(inputImg_C, (0,((height // 2)+20)), (0+ROIw,((height // 2)+20+ROIh)), (255,50,125), 3)
-
-
+        # cv2.rectangle(inputImg_C, (0,((height // 2)+20)), (0+ROIw,((height // 2)+20+ROIh)), (255,50,125), 3)
 
     return inputImg_C
 
@@ -248,10 +253,6 @@ def findTrunk(binaryImage):
 def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
     # finds contours
     contours, hierarchy = cv2.findContours(closing_bgr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
-
-    img_height, img_width = closing_bgr.shape
-    sensor_y, sensor_x = int(img_height / 2), int(img_width / 2)
-    print(img_width, img_height)
 
     # Creates copies so it does not mess with the originals
     closing_bgr_C = closing_bgr.copy()
@@ -267,7 +268,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
         if cv2.contourArea(cnt) > 2000:
             # finds bounding box for the objects
             x, y, width, height = cv2.boundingRect(cnt)
-            #print(x, y, width, height)
+
             # finds the avg. distance to the object
             box_dist = depth_image[y:y + height, x:x + width]
             box_dist = box_dist.reshape((box_dist.shape[0] * box_dist.shape[1], 1))
@@ -285,11 +286,8 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
             x_coord = (x - depth_intrinsics.ppx)
             y_coord = -(y - depth_intrinsics.ppy)
             irl_x = (dist * x_coord) / depth_intrinsics.fx
-            irl_y = (dist * y_coord) / depth_intrinsics.fy
+            irl_z = (dist * y_coord) / depth_intrinsics.fy
 
-            pos1 = rs.rs2_deproject_pixel_to_point(depth_intrinsics, (x, y), dist)
-            pos2 = rs.rs2_deproject_pixel_to_point(depth_intrinsics, (x + width, y + height), dist)
-            print(pos1, pos2)
             # draws rectangle and writes information for the bounding box in binary image
             cv2.rectangle(closing_bgr_C, (x, y), (x + width, y + height), (0, 0, 255), 2)
             cv2.circle(closing_bgr_C, (x, y), 5, (255, 0, 0), -1)
@@ -299,7 +297,7 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(closing_bgr_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
                         (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            cv2.putText(closing_bgr_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
+            cv2.putText(closing_bgr_C, f'Position x: {round(irl_x, 2)}m y: {round(dist, 2)}m z: {round(irl_z, 2)}m',
                         (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
 
             # draws rectangle and writes information for the bounding box in color image
@@ -311,16 +309,18 @@ def findContours(closing_bgr, color_image, depth_frame, depth_intrinsics):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
             cv2.putText(color_image_C, f'Real Width: {round(irlWidth, 2)}m & Real Height: {round(irlHeight, 2)}m',
                         (x, y + height + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-            cv2.putText(color_image_C, f'Position x: {round(irl_x, 2)}m y: {round(irl_y, 2)}m z: {round(dist, 2)}m',
+            cv2.putText(color_image_C, f'Position x: {round(irl_x, 2)}m y: {round(dist, 2)}m z: {round(irl_z, 2)}m',
                         (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
 
     return closing_bgr_C, color_image_C
 
 
-def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trunk_box, colorized_depth, fps):
+def imageShow(bag_file_run, video_done, color_box, depth_box, fps):
+    # Displays the fps in the frame
     cv2.putText(depth_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
     cv2.putText(color_box, f'FPS: {round(fps, 2)}', (0, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-    color_box = cv2.resize(color_box, (int(848 * 1.5), int(480 * 1.5)), interpolation=cv2.INTER_AREA)
+    # color_box = cv2.resize(color_box, (int(848 * 1.5), int(480 * 1.5)), interpolation=cv2.INTER_AREA)
+
     # cv2.imshow("Binary", binary_image)
     # cv2.imshow("Color", color_image)
     # cv2.imshow("Trunk Box", trunk_box)
@@ -341,10 +341,11 @@ def imageShow(bag_file_run, video_done, depth_binary, color_box, depth_box, trun
 
 
 def main():
-    # If you want to run the same file a lot, then set the second argument in bagFileRun to True
     # Write the name of the file you want to run in the first argument in bagFileRun.
-    # if you want to loop the script then using input, to run through different bag files. Set last argument to True
+    # The files can be found in the folder called trainingBagFiles
     bagFileRun = ("training8.bag", True, False)
+    # If you want to use input, then set the second argument in bagFileRun to False
+    # if you want to loop the script when using input, to run through different bag files. Set last argument to True
 
     # This function initializes the pipline
     pipeline, frameNumberStart = initialize(bagFileRun)
@@ -365,22 +366,22 @@ def main():
             removeBackground(depth_frame, color_image, sky_binary, distance_max=4,
                              distance_min=0.2)  # distance is in meters
 
+        # Detects trunks in the binary image
         trunk_box = findTrunk(depth_masked)
 
         # Uses trunk_box to cut trunk and ground
         treeCrown_box, color_trunk_box = cutTrunkAndGround(trunk_box, color_image)
 
-        # Simple contours used for testing
+        # Detects tree crowns and calculates real world width, height and position relative to the camera
         depth_masked_trunk_box, color_image_box = findContours(treeCrown_box, color_image, depth_image,
                                                                depth_intrinsics)
 
         # Render images in opencv window
-        imageShow(bagFileRun, videoDone, depth_masked, color_image_box, depth_masked_trunk_box, trunk_box, colorized_depth, fps)
+        imageShow(bagFileRun, videoDone, color_image_box, depth_masked_trunk_box, fps)
 
-
+        # Calculate fps
         end_time = time.time() - start_time
         fps = 1 / end_time
-
 
 
 if __name__ == "__main__":
