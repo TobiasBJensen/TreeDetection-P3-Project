@@ -210,25 +210,32 @@ def cutTrunkAndGround(trunk, color_trunk_box):
 
 
 def findTrunk(binaryImage):
+    #The binary image there is used as imput is converted to BGR to make sure
+    #it is posibel to add bounding boxes later in color
+    #Then a ROI is created to fokus the themplate matching in arear there the trunks is located
     inputImg = cv2.cvtColor(binaryImage, cv2.COLOR_GRAY2BGR)
     height, width = binaryImage.shape
     ROI = binaryImage[(height // 2)+20:height-80, 0:width]
     ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
+
+    #Then to determined how many template the folder is run though and added the template to a list
     numberOfTemplates = 0
     templateList = list()
     for trunk in os.listdir("Trunks"):
         if path.isfile(path.join("Trunks", trunk)):
             numberOfTemplates += 1
-            template = cv2.imread(f"Trunks\\Test{numberOfTemplates}.png")
+            template = cv2.imread(f"Trunks\\Trunk{numberOfTemplates}.png")
             templateList.append(template)
 
-    boxes = list()
 
+    #Then the templates is used for template matching on the ROI one at the time using the SQDIFF NORMED method
+    #Then for each match there is better than 0.28 it adds that location to a new list contaning the best matchings
+    #The locations is added to the list together with opisted corner so bounding boxes can be created.
+    boxes = list()
     for i in range(numberOfTemplates):
         H, W = templateList[i].shape[:2]
         outputTemplate = cv2.matchTemplate(ROI, templateList[i], cv2.TM_SQDIFF_NORMED)
-
         (y_points, x_points) = np.where(outputTemplate <= 0.28)
 
         outputTemplate = cv2.cvtColor(outputTemplate, cv2.COLOR_GRAY2BGR)
@@ -236,9 +243,10 @@ def findTrunk(binaryImage):
         for (x, y) in zip(x_points, y_points):
             box = (x, y, x + W, y + H)
             boxes.append(box)
-
+    #Then non max suppression is done on the found matches to eliminate the overlapping matches
     boxes = non_max_suppression(np.array(boxes), overlapThresh=0.5)
 
+    #Then all the matches is printed onto the input image and then that image is retured.
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
@@ -344,7 +352,7 @@ def main():
     # Write the name of the file you want to run in the first argument in bagFileRun.
     # The files can be found in the folder called trainingBagFiles
     bagFileRun = ("training8.bag", True, False)
-    # If you want to use input, then set the second argument in bagFileRun to False
+    # If you want to use input in cormandline, then set the second argument in bagFileRun to False
     # if you want to loop the script when using input, to run through different bag files. Set last argument to True
 
     # This function initializes the pipline
