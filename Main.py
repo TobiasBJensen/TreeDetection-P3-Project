@@ -198,7 +198,6 @@ def cutTrunkAndGround(trunk, color_trunk_box):
         first_coord = box_coord.pop(0)
         second_coord = box_coord[0]
         lineBetween.append(int(second_coord[0] + (first_coord[0] - second_coord[0]) / 2))
-
     for obj in lineBetween:
         cv2.rectangle(trunk, (obj - 5, 0), (obj + 5, height), (0, 0, 0), -1)
 
@@ -210,16 +209,17 @@ def cutTrunkAndGround(trunk, color_trunk_box):
 
 
 def findTrunk(binaryImage):
-    #The binary image there is used as imput is converted to BGR to make sure
-    #it is posibel to add bounding boxes later in color
-    #Then a ROI is created to fokus the themplate matching in arear there the trunks is located
+    # The binary image there is used as input is converted to BGR to make sure
+    # it is possible to add bounding boxes in color later
+
+    # Then a ROI is created to focus the template matching in the area where the trunks are located
     inputImg = cv2.cvtColor(binaryImage, cv2.COLOR_GRAY2BGR)
     height, width = binaryImage.shape
     ROI = binaryImage[(height // 2)+20:height-80, 0:width]
     ROIh, ROIw = ROI.shape
     ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
 
-    #Then to determined how many template the folder is run though and added the template to a list
+    # Then to determined how many template the folder is run through and added the template to a list
     numberOfTemplates = 0
     templateList = list()
     for trunk in os.listdir("Trunks"):
@@ -228,10 +228,9 @@ def findTrunk(binaryImage):
             template = cv2.imread(f"Trunks\\Trunk{numberOfTemplates}.png")
             templateList.append(template)
 
-
-    #Then the templates is used for template matching on the ROI one at the time using the SQDIFF NORMED method
-    #Then for each match there is better than 0.28 it adds that location to a new list contaning the best matchings
-    #The locations is added to the list together with opisted corner so bounding boxes can be created.
+    # Then the templates is used for template matching on the ROI one at the time using the SQDIFF NORMED method
+    # Then for each match there is better than 0.28 it adds that location to a new list containing the best matching
+    # The locations is added to the list together with the opposite corner so the bounding boxes can be created.
     boxes = list()
     for i in range(numberOfTemplates):
         H, W = templateList[i].shape[:2]
@@ -243,10 +242,11 @@ def findTrunk(binaryImage):
         for (x, y) in zip(x_points, y_points):
             box = (x, y, x + W, y + H)
             boxes.append(box)
-    #Then non max suppression is done on the found matches to eliminate the overlapping matches
+
+    # Then non-max suppression is done on the found matches to eliminate the overlapping matches
     boxes = non_max_suppression(np.array(boxes), overlapThresh=0.5)
 
-    #Then all the matches is printed onto the input image and then that image is retured.
+    # Then all the matches is printed onto the input image and then that image is returned.
     inputImg_C = inputImg.copy()
     for (x1, y1, x2, y2) in boxes:
         cv2.rectangle(outputTemplate, (x1, y1), (x2, y2), (255, 0, 0), 3)
@@ -349,10 +349,10 @@ def imageShow(bag_file_run, video_done, color_box, depth_box, fps):
 
 
 def main():
-    # Write the name of the file you want to run in the first argument in bagFileRun.
+    # Write the name of the file you want to run in the first argument in bagFileRun
     # The files can be found in the folder called trainingBagFiles
-    bagFileRun = ("training8.bag", True, False)
-    # If you want to use input in cormandline, then set the second argument in bagFileRun to False
+    bagFileRun = ("training1.bag", True, False)
+    # If you want to use input in commandline, then set the second argument in bagFileRun to False
     # if you want to loop the script when using input, to run through different bag files. Set last argument to True
 
     # This function initializes the pipline
@@ -365,8 +365,8 @@ def main():
         depth_frame, colorized_depth, color_image, videoDone, depth_intrinsics = getFrames(pipeline, frameNumberStart)
 
         # Process color data and isolates objects within a given color threshold
-        minThresh = np.array([20, 28, 30])  # ([minH, minS, minV])
-        maxThresh = np.array([114, 100, 115])  # ([maxH, maxS, maxV])
+        minThresh = np.array([230, 230, 230])  # ([minB, minG, minR])
+        maxThresh = np.array([255, 255, 255])  # ([maxB, maxG, maxR])
         removeSky, sky_binary = colorThresholding(color_image, minThresh, maxThresh, kernel=np.ones((3, 3), np.uint8))
 
         # Process depth data and isolates objects within a given depth threshold
